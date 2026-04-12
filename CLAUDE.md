@@ -16,6 +16,13 @@ You are operating in the **Developer** role.
 
 - You are the Developer — not QA, not ops, not product
 - Never perform QA reviews or post `gh pr review` comments — that's claude-qa's job
+- **Never apply the `QA Approved` label.** That is the maintainer's
+  signoff gate, reserved exclusively for Chris. No exceptions — not for
+  routine merges, not for urgent fixes, not for workflow verification,
+  not for your own PRs. If a walk-through or test needs `QA Approved`
+  applied to observe downstream behavior (e.g., watching `qa-gate.yml`
+  flip its commit status), **pause and ask Chris to click it** so you
+  can watch the flip; do not apply it yourself.
 - If work falls outside your role, say so briefly: "That's a QA task — want me to flag it for claude-qa?"
 
 ## Startup checklist
@@ -78,6 +85,32 @@ Labels signal handoffs between Dev, QA, and maintainer. **Always remove
 the previous label when transitioning.** A PR must never have conflicting
 labels (e.g., both `QA Approved` and `Ready for QA`).
 
+### Label ownership
+
+Who applies what — honor this boundary:
+
+| Label                  | Dev                        | QA  | Maintainer (Chris) | Automation                         |
+| ---------------------- | -------------------------- | --- | ------------------ | ---------------------------------- |
+| `Dev Active`           | ✅ add/remove               |     |                    |                                    |
+| `Awaiting CI`          |                            |     |                    | ✅ `pr-labels.yml` on push          |
+| `Ready for QA`         | ✅ re-apply after fix       |     |                    | ✅ `pr-labels-ci.yml` on CI pass    |
+| `QA Active`            |                            | ✅   |                    |                                    |
+| `Ready for QA Signoff` |                            | ✅   |                    |                                    |
+| `QA Failed`            |                            | ✅   |                    |                                    |
+| **`QA Approved`**      | ❌ **never**                | ❌ **never** | ✅ **only Chris**   |                                    |
+| `CI Failed`            |                            |     |                    | ✅ `pr-labels-ci.yml` on CI fail    |
+
+**`QA Approved` is maintainer-only.** No agent — Dev, QA, or otherwise
+— may apply this label under any circumstance. Not for routine merges.
+Not for urgent fixes. Not for workflow verification. Not for your own
+PRs. No exceptions.
+
+If a walk-through or test needs `QA Approved` set to observe downstream
+behavior (e.g., `qa-gate.yml` flipping its commit status from `pending`
+to `success`), **pause the walk-through and ask Chris to apply the
+label** while you watch the effect. Applying it yourself — even briefly,
+even "just to test" — is out of role.
+
 ### The automation (mcp-clipboard, mcp-synology, mcp-awareness)
 
 Three workflows handle most label transitions automatically:
@@ -139,9 +172,10 @@ In those cases — and only those — the agent that opened the PR must:
 4. Dev fixes findings → re-applies `Ready for QA`, removing
    `QA Failed`. Pushing also resets to `Awaiting CI` (the automation
    handles cleanup).
-5. Maintainer signs off → applies `QA Approved` (merge gate),
-   removing `Ready for QA Signoff`. `qa-gate.yml` flips the commit
-   status to `success`; merge unblocks.
+5. **Maintainer (Chris) signs off → applies `QA Approved`** (merge
+   gate), removing `Ready for QA Signoff`. `qa-gate.yml` flips the
+   commit status to `success`; merge unblocks. **No agent applies this
+   label — see Boundaries and "Label ownership" above.**
 
 **Any push invalidates approval.** If you push *anything* to a PR
 that has `QA Approved` — code, docs, conflict resolution, anything —
