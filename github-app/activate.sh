@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Source this script to activate cmeans-claude-dev[bot] identity.
 # Usage: source github-app/activate.sh
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
 source "$SCRIPT_DIR/config"
 
 TOKEN=$("$SCRIPT_DIR/get-token.sh")
