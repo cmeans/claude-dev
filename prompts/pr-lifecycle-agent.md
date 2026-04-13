@@ -26,9 +26,14 @@ You are managing the PR lifecycle for PR #{{PR_NUMBER}} in {{REPO}}.
 
 2. Poll CI every 30 seconds until complete. Do NOT use `gh pr checks --watch` (it blocks on QA Gate).
    ```
+   gh pr checks {{PR_NUMBER}} 2>&1 | grep -v 'QA Gate'
+   ```
+   First verify checks exist -- if the output (excluding QA Gate) is empty or only whitespace, checks haven't started yet; keep polling.
+   Once checks appear, filter for pending/failed:
+   ```
    gh pr checks {{PR_NUMBER}} 2>&1 | grep -E 'pending|fail' | grep -v 'QA Gate'
    ```
-   When this returns empty, all CI checks have passed. If any line says "fail", CI has failed.
+   When this returns empty (and checks exist), all CI checks have passed. If any line says "fail", CI has failed.
 
 3. **If CI passes:**
    - Wait 15 seconds for on-unlabel automation to fire
@@ -73,8 +78,7 @@ notify-send -u normal "PR #{{PR_NUMBER}} Ready for QA" "{{PR_TITLE}} — CI gree
 
 Report final label state and stop.
 
-{{#if NEXT_PR}}
-### Phase 4: Queue Management (if NEXT_PR provided)
+### Phase 4: Queue Management (optional -- remove this section if no NEXT_PR)
 
 After reporting Ready for QA, monitor for merge. Poll every 60 seconds:
 ```
@@ -83,9 +87,9 @@ gh pr view {{PR_NUMBER}} --json state --jq .state
 
 When state is "MERGED":
 1. Notify: `notify-send -u normal "PR #{{PR_NUMBER}} Merged" "Rebasing #{{NEXT_PR}} next"`
-2. Rebase the next PR:
+2. Rebase the next PR (assumes a local clone with the branch available):
    ```
-   git fetch origin main
+   git fetch origin main {{NEXT_BRANCH}}
    git checkout {{NEXT_BRANCH}}
    git rebase origin/main
    ```
@@ -98,14 +102,17 @@ When state is "MERGED":
 6. Remove Dev Active if present: `gh pr edit {{NEXT_PR}} --remove-label "Dev Active"`
 7. Notify: `notify-send -u normal "PR #{{NEXT_PR}} Rebased and Pushed" "CI running"`
 8. Report and stop. A new lifecycle agent will be dispatched for #{{NEXT_PR}}.
-{{/if}}
 
 ## Important
 
-- Never merge PRs — dev does that after QA Approved
-- Never fix CI failures — report them and stop
-- Never skip the Codecov detail check — passing status is not enough
+- Never merge PRs -- dev does that after QA Approved
+- Never fix CI failures -- report them and stop
+- Never skip the Codecov detail check -- passing status is not enough
 - If anything unexpected happens, report and stop
+
+## Platform notes
+
+- `notify-send` and `paplay` are Linux-specific (freedesktop). On macOS, substitute `osascript -e 'display notification'` and `afplay`. On other platforms, adjust or remove notifications.
 ```
 
 ## Variables
@@ -115,8 +122,8 @@ When state is "MERGED":
 | `{{PR_NUMBER}}` | PR number to manage | `114` |
 | `{{REPO}}` | Repository | `cmeans/mcp-awareness` |
 | `{{PR_TITLE}}` | PR title for notifications | `fix: prompt sync owner scoping` |
-| `{{NEXT_PR}}` | Next PR in queue (optional) | `113` |
-| `{{NEXT_BRANCH}}` | Branch name of next PR | `fix/intention-fired-transition` |
+| `{{NEXT_PR}}` | Next PR in queue (optional -- remove Phase 4 if unused) | `113` |
+| `{{NEXT_BRANCH}}` | Branch name of next PR (optional -- remove Phase 4 if unused) | `fix/intention-fired-transition` |
 
 ## Queue Example
 
