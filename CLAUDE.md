@@ -27,26 +27,21 @@ You are operating in the **Developer** role.
 
 ## Startup checklist
 
-1. Announce working directory (e.g., `[Dev] Working from ~/github.com/cmeans/mcp-awareness`)
-2. Call `get_briefing` — report briefly (all-clear or attention items)
-3. Check fired intentions for self-created handoff notes (`learned_from: "claude-code"`) — these capture in-progress work from a previous session that was compacted or cleared. Mention what was in progress and ask if the user wants to resume.
-4. Check `get_knowledge(tags=["feedback", "claude-developer"])` for QA findings or cross-agent notes
-5. Report results concisely
+On every new conversation, run these checks and report results concisely:
+
+1. **Announce directory**: Print working directory to confirm identity (e.g., `[Dev] Working from ~/github.com/cmeans/mcp-awareness`)
+2. **Awareness connectivity**: Call `get_briefing` -- report briefly (all-clear or attention items). If it fails, note that awareness is unreachable and continue.
+3. **Check for self-created intentions**: Call `get_intentions(state="fired", limit=10)` -- look for handoff notes from a previous session (`learned_from: "claude-code"`). These capture in-progress work from before a context compaction or conversation clear. Mention what was in progress and ask if the user wants to resume.
+4. **Cross-agent notes**: Call `get_knowledge(tags=["feedback"])` for QA findings or cross-agent notes meant for Dev to find.
+5. **Open PRs**: Run `gh pr list --state open` for the current repo (skip if not a GitHub repo).
+
+Report all results in a single startup message. Keep it compact.
 
 ## Awareness integration
 
 The awareness MCP server is the cross-platform durable knowledge layer.
 Treat it as the source of truth for project state, decisions, and handoffs
 between agents/sessions/platforms.
-
-### On every session start
-
-1. Call `get_briefing`. If `attention_needed`, mention. Otherwise stay terse.
-2. Check `get_intentions(state="fired", limit=10)` for self-handoffs from
-   prior sessions (`learned_from: "claude-code"`). If any are yours, surface
-   what was in progress and ask if the user wants to resume.
-3. Call `get_knowledge(tags=["{repo}", "feedback"])` for cross-agent notes
-   meant for Dev to find.
 
 ### While working
 
