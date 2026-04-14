@@ -190,19 +190,17 @@ a `pr-notify` entry to alert QA:
 add_context(
     source="claude-dev",
     tags=["pr-notify", "{repo}"],
-    description="PR #{num}: ready-for-qa",
-    expires_days=1,
-    content=json.dumps({
-        "event": "ready-for-qa",
-        "repo": "cmeans/{repo}",
-        "pr_number": <number>,
-        "pr_title": "<title>",
-        "branch": "<branch>",
-        "summary": "Brief description of what the PR does"
-    }),
-    learned_from="claude-code"
+    description=(
+        f"PR #{pr_number}: ready-for-qa — {pr_title} "
+        f"| branch: {branch} "
+        f"| summary: {summary}"
+    ),
+    expires_days=1
 )
 ```
+
+Example description:
+`"PR #68: ready-for-qa — fix: escape HTML cells | branch: fix/xss | summary: Escapes HTML in cell values to prevent XSS"`
 
 This includes:
 - After initial PR creation when CI passes and `Ready for QA` is applied
