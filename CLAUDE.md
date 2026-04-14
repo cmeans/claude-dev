@@ -181,6 +181,37 @@ it's the safety net.
 explaining why (e.g., "Removing `QA Approved` — formatting fix
 pushed after approval"). Audit trail.
 
+### PR notifications via Awareness
+
+When a PR reaches `Ready for QA` (either via automation or manual label), write
+a `pr-notify` entry to alert QA:
+
+```python
+add_context(
+    source="claude-dev",
+    tags=["pr-notify", "{repo}"],
+    description="PR #{num}: ready-for-qa",
+    expires_days=1,
+    content=json.dumps({
+        "event": "ready-for-qa",
+        "repo": "cmeans/{repo}",
+        "pr_number": <number>,
+        "pr_title": "<title>",
+        "branch": "<branch>",
+        "summary": "Brief description of what the PR does"
+    }),
+    learned_from="claude-code"
+)
+```
+
+This includes:
+- After initial PR creation when CI passes and `Ready for QA` is applied
+- After fixing QA findings and re-applying `Ready for QA`
+
+The 1-minute `/loop` cron (defined in global CLAUDE.md) watches for `qa-failed`
+notifications from QA. When one arrives, report it to the user and begin
+addressing the findings.
+
 ### PR body conventions
 
 Every PR body must include:
