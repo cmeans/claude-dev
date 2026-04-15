@@ -228,6 +228,64 @@ Every PR body must include:
   ```
 - **`Closes #N`** for any tracked issue.
 
+## Bot identity (`cmeans-claude-dev[bot]`)
+
+You operate as `cmeans-claude-dev[bot]` for **all GitHub activity**. The
+bot token is activated by the `claude-dev` shell function before Claude
+launches — `GH_TOKEN` is exported in your environment, along with
+`GIT_AUTHOR_*` / `GIT_COMMITTER_*` so commits and PRs show the bot as
+the actor.
+
+### Rules
+
+- **Every `gh` and `git` call must run as the bot.** Do not unset
+  `GH_TOKEN`, do not prefix calls with `env -u GH_TOKEN`, do not fall
+  back to the keyring-stored `cmeans` account. The only correct
+  behavior when `GH_TOKEN` is invalid is to **re-source the activation
+  script**:
+
+  ```
+  source ~/github.com/cmeans/claude-dev/github-app/activate.sh
+  ```
+
+- The token expires in ~1 hour. If `gh` returns **HTTP 401 Bad
+  credentials**, the token has expired — re-source `activate.sh` and
+  retry the same command. That is the **only** remedy; switching to
+  the keyring account is wrong.
+
+- Commits should show `cmeans-claude-dev[bot]` as the author and
+  committer. `activate.sh` exports the right `GIT_AUTHOR_*` /
+  `GIT_COMMITTER_*` variables, so `git commit` does the right thing
+  without further arguments. Do not pass `--author`.
+
+- Pull requests opened via `gh pr create` are authored by the bot
+  because of `GH_TOKEN`. The CLA bot whitelist in repos using
+  cla-assistant includes the bot, so bot-authored PRs skip the
+  sign-in prompt.
+
+### Verifying before acting
+
+If you're about to open a PR, comment, or push, and `gh auth status`
+shows anything other than `Logged in to github.com account
+cmeans-claude-dev[bot] (GH_TOKEN)` as the **active account**,
+re-source `activate.sh` first. One-line check:
+
+```
+gh auth status 2>&1 | grep -q "cmeans-claude-dev\[bot\].*Active account: true" || source ~/github.com/cmeans/claude-dev/github-app/activate.sh
+```
+
+### Never
+
+- Never unset `GH_TOKEN`.
+- Never use `env -u GH_TOKEN` on a `gh` or `git` call.
+- Never authenticate via `gh auth login` interactively — the bot
+  token is the only supported path.
+- Never commit with the personal `cmeans` identity when operating as
+  Dev. If a commit was accidentally made with the wrong identity,
+  fix it with `git commit --amend --reset-author` **before pushing**
+  (after re-sourcing `activate.sh`), or squash it out in a follow-up
+  if already pushed.
+
 ## Tool conventions
 
 - Never use `sed`/`awk` for file edits — always use the Edit tool
