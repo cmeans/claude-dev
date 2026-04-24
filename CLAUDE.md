@@ -274,6 +274,54 @@ re-source `activate.sh` first. One-line check:
 gh auth status 2>&1 | grep -q "cmeans-claude-dev\[bot\].*Active account: true" || source ~/github.com/cmeans/claude-dev/github-app/activate.sh
 ```
 
+### `git push` shell-session rule (critical)
+
+**Every Bash tool call that runs `git push` to github.com MUST either
+source `activate.sh` inside that same Bash call, or invoke
+`bot-git-push.sh` directly.** Sourcing once at session start is NOT
+enough — each Bash tool call spawns a fresh shell, so the `git`
+wrapper function installed by `activate.sh` does not persist.
+
+**Failure mode (what happens when you forget):** the real `git`
+binary runs. The user's global `~/.gitconfig` has
+`url.git@github.com:.insteadOf = https://github.com/`, which rewrites
+the HTTPS remote to SSH on every push. SSH auth uses the user's
+personal key, so GitHub records **the user as the PushEvent actor**
+even though the commit author/committer is the bot. Branch protection
+rules keyed on last-pusher (e.g.
+`require_last_push_approval = true`) then reject the user's own
+approval as self-approval, and the PR sits permanently blocked until
+the branch is force-pushed by the bot or a new commit lands.
+
+This bit PR #390 on 2026-04-24. Do not repeat it.
+
+**Correct recipes:**
+
+```
+# Recipe A — source activate.sh in the same Bash call (preferred)
+source ~/github.com/cmeans/claude-dev/github-app/activate.sh && \
+  git push origin my-branch
+```
+
+```
+# Recipe B — call bot-git-push.sh directly (no git wrapper needed)
+~/github.com/cmeans/claude-dev/github-app/bot-git-push.sh \
+  push origin my-branch
+```
+
+**Diagnostic before any push:** run `git remote -v` — if the URL
+shows `git@github.com:` and you have not sourced `activate.sh` in
+this same Bash call, the push will leak through SSH as the user. Do
+not push until you apply one of the recipes above.
+
+**Red flag after a push:** if `gh pr view <N> --json reviewDecision`
+later shows `REVIEW_REQUIRED` with a message about
+`require_last_push_approval`, or the web UI says "require approval
+from someone other than {user} because they were the last pusher",
+the push leaked. Do not force-push to "fix" history without explicit
+authorization — propose adding a follow-up commit pushed via the
+correct recipe instead.
+
 ### Never
 
 - Never unset `GH_TOKEN`.
