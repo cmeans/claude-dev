@@ -290,10 +290,28 @@ personal key, so GitHub records **the user as the PushEvent actor**
 even though the commit author/committer is the bot. Branch protection
 rules keyed on last-pusher (e.g.
 `require_last_push_approval = true`) then reject the user's own
-approval as self-approval, and the PR sits permanently blocked until
-the branch is force-pushed by the bot or a new commit lands.
+approval as self-approval, and the PR sits blocked.
 
-This bit PR #390 on 2026-04-24. Do not repeat it.
+**Force-pushing over a leaked branch DOES NOT fix this.** GitHub
+records the branch's `CreateEvent` (first push of a new ref) with
+its own actor, separate from subsequent `PushEvent`s. A force-push
+replaces the HEAD commit and generates a new PushEvent with the bot
+as actor, but the `CreateEvent` actor (the user, from the SSH-leaked
+first push) stays in the event log forever. Branch protection
+evaluates the branch creator as a pusher regardless of how many
+times the branch is later force-pushed — the user's approval stays
+rejected. Verified the hard way on PR #389: force-push put the bot
+on the latest PushEvent, and the rule still said "require approval
+from someone other than {user} because they were the last pusher."
+The event log cross-checked via `gh api repos/.../events --jq
+'.[] | select(.type == "CreateEvent")'` confirmed the CreateEvent
+actor was the user, not the bot.
+
+**Only remedy: close the PR, delete the branch entirely, and open a
+fresh branch where the very first push is by the bot.** See the
+"Recovery" subsection below for the full procedure.
+
+This bit PR #390 AND #389 on 2026-04-24. Do not repeat either.
 
 **Correct recipes:**
 
@@ -318,9 +336,39 @@ not push until you apply one of the recipes above.
 later shows `REVIEW_REQUIRED` with a message about
 `require_last_push_approval`, or the web UI says "require approval
 from someone other than {user} because they were the last pusher",
-the push leaked. Do not force-push to "fix" history without explicit
-authorization — propose adding a follow-up commit pushed via the
-correct recipe instead.
+the branch was leaked at creation time. Confirm with:
+
+```
+gh api repos/{owner}/{repo}/events --paginate \
+  --jq '.[] | select(.payload.ref == "refs/heads/{branch}" \
+    or (.payload.ref_type == "branch" and .payload.ref == "{branch}"))' \
+  | head -40
+```
+
+If a `CreateEvent` with `actor.login = {user}` (not the bot) appears,
+a force-push will NOT clear it. Go to Recovery below.
+
+### Recovery — when a branch was leaked at creation time
+
+Do not force-push. Do not attempt to rewrite history. The CreateEvent
+actor is immutable. Instead:
+
+1. Close the PR with a comment explaining the CreateEvent leak and
+   pointing at the replacement PR that will follow.
+2. Delete the leaked branch both locally and on the remote (the
+   remote delete must go through the bot wrapper too).
+3. Create a new branch from `main` — give it a new name to avoid
+   confusion with the closed branch in history.
+4. Cherry-pick the original commit(s) onto the new branch (they are
+   still reachable by SHA from reflog for ~90 days). The cherry-pick
+   produces new commit SHAs but the same file content.
+5. Push the new branch via the correct recipe (source activate.sh in
+   the same Bash call). This push is now the CreateEvent — actor
+   is the bot.
+6. Open a replacement PR. Cross-link both directions so the
+   investigation trail is preserved.
+7. Verify: `gh api repos/.../events` on the new branch shows a
+   CreateEvent by the bot, not the user.
 
 ### Never
 
