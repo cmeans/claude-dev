@@ -1,0 +1,79 @@
+# Bot-curated git global config TEMPLATE for cmeans-claude-dev[bot] sessions.
+#
+# This file is a TEMPLATE: activate.sh substitutes __SCRIPT_DIR__ with the
+# absolute path of the github-app/ directory and writes the rendered file
+# to github-app/.git-global.config (gitignored), then exports
+# GIT_CONFIG_GLOBAL pointing at the rendered copy. The rendered copy
+# replaces ~/.gitconfig for the duration of the session.
+#
+# Why a TEMPLATE rather than a static file: git's credential.helper does
+# NOT expand `~` in path values. The helper script must be referenced by
+# absolute path. Generating at activation time keeps the path correct
+# regardless of where the repo is cloned without hardcoding a specific
+# /home/<user>/... layout.
+#
+# Subprocess-safe: GIT_CONFIG_GLOBAL is an environment variable, so
+# subprocesses inherit it automatically. Shell functions do not propagate
+# into subprocesses, which is why we build identity into config rather
+# than leaning on a `git push` shell-function wrapper.
+#
+# Built from scratch rather than filtered from ~/.gitconfig so the diff
+# against intent is readable and the file is immune to drift in the user's
+# global config. If something needs to be inherited (e.g. an alias the bot
+# actually uses), add it here explicitly.
+#
+# To verify: after sourcing activate.sh, `git config --list --show-origin`
+# should report the rendered file, NOT ~/.gitconfig.
+
+[user]
+	# Bot identity. The numeric prefix is the BOT_USER_ID (272174644), not
+	# the APP_ID (3223881). Using APP_ID breaks GitHub's resolution of
+	# commits back to the bot account, which in turn breaks
+	# require_last_push_approval enforcement. Lookup:
+	#   gh api '/users/cmeans-claude-dev%5Bbot%5D' --jq .id
+	name = cmeans-claude-dev[bot]
+	email = 272174644+cmeans-claude-dev[bot]@users.noreply.github.com
+
+[commit]
+	# Bot has no signing key. Without these, a `commit.gpgSign = true` in
+	# the user's global config would silently inherit and break bot
+	# commits with a missing-key error. Belt-and-suspenders.
+	gpgSign = false
+
+[tag]
+	gpgSign = false
+
+[push]
+	# Same reasoning as [commit]/[tag]: insulate against future
+	# user-side `push.gpgSign = true`.
+	gpgSign = false
+
+[init]
+	defaultBranch = main
+
+[url "https://github.com/"]
+	# Force github.com pushes onto HTTPS regardless of how `origin` is
+	# configured in the per-clone .git/config. With this rule plus the
+	# absence of the user's own
+	#   url.git@github.com:.insteadOf = https://github.com/
+	# (deliberately omitted from this file) the credential helper below
+	# is the one that authenticates the push, and the PushEvent actor
+	# resolves to cmeans-claude-dev[bot]. Push only — fetches over SSH
+	# remain unchanged so cloned repos with SSH origins keep working.
+	pushInsteadOf = git@github.com:
+
+[credential "https://github.com"]
+	# Reset the helper list (empty value) so we don't inherit anything
+	# from a shell-environment GIT_CONFIG_* matrix or a prior session,
+	# then install the bot helper as the only entry. __SCRIPT_DIR__ is
+	# replaced by activate.sh at render time. The bot helper stays
+	# silent for non-github.com hosts, so other remotes are not
+	# affected by this scoped block.
+	helper =
+	helper = __SCRIPT_DIR__/git-credential-bot-token.sh
+
+[credential "https://api.github.com"]
+	# api.github.com appears as a separate host in some git operations;
+	# scope the helper here too for parity.
+	helper =
+	helper = __SCRIPT_DIR__/git-credential-bot-token.sh

@@ -1,2 +1,6 @@
 *.pem
 *.key
+
+# Rendered bot git-global config (generated at activate.sh time; absolute
+# paths inside, machine-specific). Source of truth is the .template file.
+github-app/.git-global.config

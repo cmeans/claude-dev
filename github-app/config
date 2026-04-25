@@ -1,3 +1,14 @@
 APP_ID=3223881
 INSTALLATION_ID=120083881
+# Bot user ID for the installation's bot account (cmeans-claude-dev[bot]).
+# Distinct from APP_ID: APP_ID identifies the GitHub App definition; BOT_USER_ID
+# identifies the bot user account that authors commits/reviews/PRs. GitHub's
+# canonical noreply email format for bot commits is:
+#   <BOT_USER_ID>+<app_slug>[bot]@users.noreply.github.com
+# Using APP_ID here causes GitHub to fail to resolve commits back to the bot
+# account — which in turn makes `require_last_push_approval` rulesets treat
+# the person whose SSH key pushed the branch (e.g. `cmeans`) as the last
+# pusher, blocking self-approval even when the bot "authored" the commit.
+# Resolved via `gh api /users/cmeans-claude-dev%5Bbot%5D --jq .id`.
+BOT_USER_ID=272174644
 PRIVATE_KEY=~/.claude/github-app/claude-dev.pem
