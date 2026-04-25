@@ -1,16 +1,20 @@
 # Bot-curated git global config TEMPLATE for cmeans-claude-dev[bot] sessions.
 #
-# This file is a TEMPLATE: activate.sh substitutes __SCRIPT_DIR__ with the
-# absolute path of the github-app/ directory and writes the rendered file
-# to github-app/.git-global.config (gitignored), then exports
-# GIT_CONFIG_GLOBAL pointing at the rendered copy. The rendered copy
-# replaces ~/.gitconfig for the duration of the session.
+# This file is a TEMPLATE. Two placeholders (each surrounded by literal
+# `@@`) are replaced by activate.sh at render time:
+#   - bot-app-dir  → absolute path of the github-app/ directory
+#   - bot-user-id  → BOT_USER_ID from github-app/config (the bot account ID)
 #
-# Why a TEMPLATE rather than a static file: git's credential.helper does
+# The rendered file goes to github-app/.git-global.config (gitignored),
+# and activate.sh exports GIT_CONFIG_GLOBAL pointing at it. The rendered
+# copy replaces ~/.gitconfig for the duration of the session.
+#
+# Why a template rather than a static file: git's credential.helper does
 # NOT expand `~` in path values. The helper script must be referenced by
 # absolute path. Generating at activation time keeps the path correct
 # regardless of where the repo is cloned without hardcoding a specific
-# /home/<user>/... layout.
+# /home/<user>/... layout. The bot-user-id placeholder keeps github-app/config
+# as the single source of truth for the bot account ID.
 #
 # Subprocess-safe: GIT_CONFIG_GLOBAL is an environment variable, so
 # subprocesses inherit it automatically. Shell functions do not propagate
@@ -26,13 +30,14 @@
 # should report the rendered file, NOT ~/.gitconfig.
 
 [user]
-	# Bot identity. The numeric prefix is the BOT_USER_ID (272174644), not
-	# the APP_ID (3223881). Using APP_ID breaks GitHub's resolution of
-	# commits back to the bot account, which in turn breaks
-	# require_last_push_approval enforcement. Lookup:
+	# Bot identity. The numeric prefix is the bot user ID (NOT the app
+	# ID — those are different numbers for the same GitHub App). Using
+	# the app ID instead breaks GitHub's resolution of commits back to
+	# the bot account, which in turn breaks require_last_push_approval
+	# enforcement. Bot-user-id lookup:
 	#   gh api '/users/cmeans-claude-dev%5Bbot%5D' --jq .id
 	name = cmeans-claude-dev[bot]
-	email = 272174644+cmeans-claude-dev[bot]@users.noreply.github.com
+	email = @@BOT_USER_ID@@+cmeans-claude-dev[bot]@users.noreply.github.com
 
 [commit]
 	# Bot has no signing key. Without these, a `commit.gpgSign = true` in
@@ -65,15 +70,14 @@
 [credential "https://github.com"]
 	# Reset the helper list (empty value) so we don't inherit anything
 	# from a shell-environment GIT_CONFIG_* matrix or a prior session,
-	# then install the bot helper as the only entry. __SCRIPT_DIR__ is
-	# replaced by activate.sh at render time. The bot helper stays
-	# silent for non-github.com hosts, so other remotes are not
+	# then install the bot helper as the only entry. The bot helper
+	# stays silent for non-github.com hosts, so other remotes are not
 	# affected by this scoped block.
 	helper =
-	helper = __SCRIPT_DIR__/git-credential-bot-token.sh
+	helper = @@SCRIPT_DIR@@/git-credential-bot-token.sh
 
 [credential "https://api.github.com"]
 	# api.github.com appears as a separate host in some git operations;
 	# scope the helper here too for parity.
 	helper =
-	helper = __SCRIPT_DIR__/git-credential-bot-token.sh
+	helper = @@SCRIPT_DIR@@/git-credential-bot-token.sh

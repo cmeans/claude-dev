@@ -232,9 +232,14 @@ Every PR body must include:
 
 You operate as `cmeans-claude-dev[bot]` for **all GitHub activity**. The
 bot token is activated by the `claude-dev` shell function before Claude
-launches — `GH_TOKEN` is exported in your environment, along with
-`GIT_AUTHOR_*` / `GIT_COMMITTER_*` so commits and PRs show the bot as
-the actor.
+launches — `activate.sh` exports `GH_TOKEN` (used by `gh` CLI calls)
+and `GIT_CONFIG_GLOBAL` pointing at a curated bot git config. The
+rendered config replaces `~/.gitconfig` for the duration of the
+session and carries the bot's `[user]` identity, gpgSign disables,
+`pushInsteadOf` for github.com (forces SSH→HTTPS for push), and the
+credential helper that returns the bot token. Subprocesses inherit the
+env var automatically; non-bot terminals in the same clone don't see
+it and continue to read `~/.gitconfig` as the human.
 
 ### Rules
 
@@ -254,9 +259,9 @@ the actor.
   the keyring account is wrong.
 
 - Commits should show `cmeans-claude-dev[bot]` as the author and
-  committer. `activate.sh` exports the right `GIT_AUTHOR_*` /
-  `GIT_COMMITTER_*` variables, so `git commit` does the right thing
-  without further arguments. Do not pass `--author`.
+  committer. The rendered bot config sets `user.name` / `user.email`
+  to the bot identity, so `git commit` does the right thing without
+  further arguments. Do not pass `--author`.
 
 - Pull requests opened via `gh pr create` are authored by the bot
   because of `GH_TOKEN`. The CLA bot whitelist in repos using
@@ -276,11 +281,14 @@ gh auth status 2>&1 | grep -q "cmeans-claude-dev\[bot\].*Active account: true" |
 
 ### `git push` shell-session rule (critical)
 
-**Every Bash tool call that runs `git push` to github.com MUST either
-source `activate.sh` inside that same Bash call, or invoke
-`bot-git-push.sh` directly.** Sourcing once at session start is NOT
-enough — each Bash tool call spawns a fresh shell, so the `git`
-wrapper function installed by `activate.sh` does not persist.
+**Every Bash tool call that runs `git push` to github.com MUST source
+`activate.sh` inside that same Bash call.** Sourcing once at session
+start is NOT enough — each Bash tool call from Claude Code spawns a
+fresh shell process, and the `GIT_CONFIG_GLOBAL` env var that
+activate.sh exports does not propagate back to Claude Code's parent
+shell across separate Bash tool calls. Without `GIT_CONFIG_GLOBAL`
+pointing at the bot config, the fresh subprocess reads `~/.gitconfig`
+and the failure mode below applies.
 
 **Failure mode (what happens when you forget):** the real `git`
 binary runs. The user's global `~/.gitconfig` has
@@ -313,16 +321,22 @@ fresh branch where the very first push is by the bot.** See the
 
 This bit PR #390 AND #389 on 2026-04-24. Do not repeat either.
 
-**Correct recipes:**
+**Correct recipe:**
 
 ```
-# Recipe A — source activate.sh in the same Bash call (preferred)
+# Source activate.sh in the same Bash call.
 source ~/github.com/cmeans/claude-dev/github-app/activate.sh && \
   git push origin my-branch
 ```
 
+**Bug-report recipe (do NOT use as a routine workflow):** if a push
+from an activated bot session attributes to `cmeans` instead of the
+bot, that's a bug in `activate.sh` / `git-global.config.template` —
+file an issue first, then use `bot-git-push.sh` as a one-shot to
+unblock the immediate PR. Reaching for it without filing the issue
+lets the bug rot in the design.
+
 ```
-# Recipe B — call bot-git-push.sh directly (no git wrapper needed)
 ~/github.com/cmeans/claude-dev/github-app/bot-git-push.sh \
   push origin my-branch
 ```

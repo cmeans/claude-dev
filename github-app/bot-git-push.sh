@@ -1,18 +1,40 @@
 #!/usr/bin/env bash
-# Helper invoked by the `git` shell function in activate.sh for `git push …`.
-# Re-implements the push with a concrete bash process so we can use proper
-# arrays instead of fighting zsh word-splitting.
+# Belt-and-suspenders fallback for v2's GIT_CONFIG_GLOBAL design.
+#
+# v1 (env-var GIT_CONFIG_* matrix + `git` shell-function wrapper) is gone.
+# v2 routes plain `git push origin <branch>` from any subprocess in an
+# activated bot session through the rendered bot config — no wrapper to
+# remember. THIS script is the one-shot fallback if v2 misbehaves.
+#
+# Use ONLY if a push from an activated bot session is attributing to the
+# human owner (cmeans). That's a bug in activate.sh / git-global.config —
+# file an issue, then use this script as a one-shot to unblock. Do not use
+# this script as a default workflow.
 #
 # Behavior:
 #   - If the push targets a github.com remote AND $GH_TOKEN is set, rewrite
-#     the remote to its HTTPS URL and run `GIT_CONFIG_GLOBAL=/dev/null git push`
-#     (neutralizing the user's global `url.git@github.com:.insteadOf` rule).
+#     the remote to its HTTPS URL and run `GIT_CONFIG_GLOBAL=/dev/null git
+#     push` with the bot credential helper injected at command-line
+#     precedence (see below for why command-line precedence is required).
 #   - Otherwise, pass through untouched.
+#
+# Why a self-contained credential-helper injection instead of trusting the
+# activated session's helper chain: the inner `env GIT_CONFIG_GLOBAL=/dev/null`
+# call deliberately suppresses the user's global config to neutralize
+# `url.git@github.com:.insteadOf`. Under v2, that ALSO suppresses the
+# rendered bot config — including its credential helpers. Without an
+# explicit `-c credential.<host>.helper=...` injection here, git's helper
+# chain would be empty and the push would fail with a credential prompt.
+# The `-c` flags survive `GIT_CONFIG_GLOBAL=/dev/null` because they live
+# in git's command-line precedence layer.
 #
 # Called with argv = "push" <all original args>. The wrapper strips "push"
 # and forwards the rest so this script owns the full refspec+flags parse.
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
+BOT_HELPER="$SCRIPT_DIR/git-credential-bot-token.sh"
 
 # First positional is always "push" (the wrapper enforces that). Drop it.
 if [ "${1:-}" = "push" ]; then
@@ -118,4 +140,9 @@ push_args+=("$https_url")
 if [ -n "$refspec" ]; then push_args+=("$refspec"); fi
 if [ "${#trailing[@]}" -gt 0 ]; then push_args+=("${trailing[@]}"); fi
 
-exec env GIT_CONFIG_GLOBAL=/dev/null git push "${push_args[@]}"
+exec env GIT_CONFIG_GLOBAL=/dev/null git \
+  -c "credential.https://github.com.helper=" \
+  -c "credential.https://github.com.helper=$BOT_HELPER" \
+  -c "credential.https://api.github.com.helper=" \
+  -c "credential.https://api.github.com.helper=$BOT_HELPER" \
+  push "${push_args[@]}"

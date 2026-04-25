@@ -36,14 +36,23 @@ if [[ $? -ne 0 ]]; then
   return 1
 fi
 
-# Render git-global.config.template → .git-global.config with $SCRIPT_DIR
-# substituted in. Rendered every time so it tracks the template + script
-# location automatically; rendered file is gitignored. Plain `sed` because
-# the template only carries one placeholder and we want to keep this
-# dependency-free.
+# Render git-global.config.template → .git-global.config. Two
+# placeholders: @@SCRIPT_DIR@@ (this directory's absolute path, needed
+# for the credential.helper since git doesn't expand `~` there) and
+# @@BOT_USER_ID@@ (sourced from github-app/config so that file remains
+# the single source of truth for the bot account ID). Rendered every
+# time so the file tracks template + script location + config edits
+# automatically; rendered output is gitignored.
+#
+# Atomic write via mktemp + mv so two concurrent activations can't
+# observe a half-written file. The mv is rename(2) on the same
+# filesystem, which is atomic.
 RENDERED_GIT_CONFIG="$SCRIPT_DIR/.git-global.config"
-sed "s|__SCRIPT_DIR__|$SCRIPT_DIR|g" \
-  "$SCRIPT_DIR/git-global.config.template" > "$RENDERED_GIT_CONFIG"
+RENDERED_TMP=$(mktemp "$RENDERED_GIT_CONFIG.XXXXXX")
+sed -e "s|@@SCRIPT_DIR@@|$SCRIPT_DIR|g" \
+    -e "s|@@BOT_USER_ID@@|$BOT_USER_ID|g" \
+    "$SCRIPT_DIR/git-global.config.template" > "$RENDERED_TMP"
+mv "$RENDERED_TMP" "$RENDERED_GIT_CONFIG"
 
 export GH_TOKEN="$TOKEN"
 export GIT_CONFIG_GLOBAL="$RENDERED_GIT_CONFIG"
