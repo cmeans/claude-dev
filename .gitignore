@@ -1,2 +1,9 @@
 *.pem
 *.key
+
+# Rendered bot git-global config (generated at activate.sh time; absolute
+# paths inside, machine-specific). Source of truth is the .template file.
+# Glob covers both the rendered file itself and any mktemp tmp files
+# (e.g. .git-global.config.ab12CD) that could be left behind if `sed`
+# fails between mktemp and mv during render.
+github-app/.git-global.config*
