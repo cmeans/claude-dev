@@ -157,6 +157,13 @@ In those cases — and only those — the agent that opened the PR must:
 
 ### The standard handoff sequence
 
+0. **Before every push** (the first one and each fix push), run the
+   pre-QA review agent: `prompts/pre-qa-review-agent.md`. It's a fresh
+   agent that reviews the committed diff against a checklist built from
+   QA's past findings and reports only what it reproduced. Fix what it
+   confirms, then push once. Note the result in the PR body
+   (`Pre-QA review: N findings, fixed in <sha>` or `Pre-QA review: clean`).
+   Skip it only for a push that just merges `main`, with no other changes.
 1. Dev finishes work → push triggers `Awaiting CI` automatically.
    While CI runs, `Dev Active` may coexist; remove `Dev Active` when
    ready.
