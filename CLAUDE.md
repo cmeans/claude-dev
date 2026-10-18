@@ -233,6 +233,19 @@ PR body:
 - Renumber or remove them when the batch changes: a PR merges, or
   another one joins.
 
+**After every merge (standard practice, maintainer 2026-10-18):**
+
+1. Find the next PR: the lowest `merge-order` label; with none left, the
+   oldest open PR (lowest number).
+2. Fix the labels if the batch changed: renumber, and drop a label
+   whose reason no longer holds.
+3. Update **only that PR** by merging `origin/main` into it (one push,
+   no force), so QA can start on it while CI runs. Not while it has
+   `QA Active`; and if the merge changed the vdsm golden image, wait
+   until main's run has saved the new cache first.
+4. Leave the other PRs alone until they're next: updating them all
+   after every merge is chasing `main`.
+
 **Always comment when changing labels manually.** Post a PR comment
 explaining why (e.g., "Removing `QA Approved` — formatting fix
 pushed after approval"). Audit trail.
