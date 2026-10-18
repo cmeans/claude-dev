@@ -162,8 +162,9 @@ In those cases — and only those — the agent that opened the PR must:
    agent that reviews the committed diff against a checklist built from
    QA's past findings and reports only what it reproduced. Fix what it
    confirms, then push once. Note the result in the PR body
-   (`Pre-QA review: N findings, fixed in <sha>` or `Pre-QA review: clean`).
-   Skip it only for a push that just merges `main`, with no other changes.
+   (`Pre-QA review: N findings (M fixed, K declined: see below)` or
+   `Pre-QA review: clean`). Skip it only for a clean merge of `main` with
+   no other changes. A merge that needed conflict resolution gets the review.
 1. Dev finishes work → push triggers `Awaiting CI` automatically.
    While CI runs, `Dev Active` may coexist; remove `Dev Active` when
    ready.
