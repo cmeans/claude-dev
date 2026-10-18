@@ -94,6 +94,9 @@ Who applies what — honor this boundary:
 | `QA Failed`            |                            | ✅   |                    |                                    |
 | **`QA Approved`**      | ❌ **never**                | ❌ **never** | ✅ **only Chris**   |                                    |
 | `CI Failed`            |                            |     |                    | ✅ `pr-labels-ci.yml` on CI fail    |
+| `Behind main`          | ❌ never by hand            | ❌ never by hand |              | ✅ `pr-behind-main.yml`             |
+| `Merge conflict`       | ❌ never by hand            | ❌ never by hand |              | ✅ `pr-behind-main.yml`             |
+| `merge-order: 0`–`3`   | ✅ propose                  | read only | ✅ sets / overrides |                                    |
 
 **`QA Approved` is maintainer-only.** No agent — Dev, QA, or otherwise
 — may apply this label under any circumstance. Not for routine merges.
@@ -120,6 +123,12 @@ Three workflows handle most label transitions automatically:
 - **`qa-gate.yml`** — posts a `QA Gate` commit status that becomes
   `success` only when `QA Approved` is present. Merges blocked by
   branch protection until then.
+- **`pr-behind-main.yml`** (mcp-synology, #274) — on every push to `main`
+  and every push to a PR: `Behind main` when the branch is missing
+  commits from `main`, `Merge conflict` when GitHub says it can't merge
+  cleanly; removes each when it no longer applies. With mcp-synology
+  #276 it also removes `Ready for QA` when it adds `Merge conflict`, and
+  the CI promotion skips a PR that has it.
 
 In the normal case Dev does nothing for label transitions after pushing
 — the automation handles it. Dev's job is to apply `Dev Active` while
@@ -176,6 +185,41 @@ In those cases — and only those — the agent that opened the PR must:
 that has `QA Approved` — code, docs, conflict resolution, anything —
 the automation removes it and re-runs the cycle. Don't fight this;
 it's the safety net.
+
+### Behind main and merge conflicts
+
+`main`'s ruleset requires up-to-date branches (mcp-synology: the
+maintainer kept that rule on 2026-10-18), so every merge leaves the
+other open PRs behind.
+
+- **`Behind main` blocks the merge, not the review.** A clean merge of
+  `main` doesn't change what a PR does. Dev updates the branch **just
+  before merging**: merge `origin/main` into it (a merge commit, never a
+  force push), let CI rerun, and QA re-approves after checking that the
+  PR's own diff is unchanged.
+- **`Merge conflict` holds back review.** Resolving it changes the
+  diff, so the PR loses `Ready for QA` until Dev pushes the fix and CI
+  passes again.
+- Neither label is added or removed by hand.
+
+### Merge order labels
+
+`merge-order: 0`–`3` say which PRs merge first, to cut the update and
+re-review churn above. **Dev proposes, the maintainer sets or
+overrides, QA only reads them** (QA reviews `Ready for QA` PRs in that
+order: 0, then 1–3, then unlabeled).
+
+When Dev proposes one, it says why in a `## Merge order` section of the
+PR body:
+
+- **`merge-order: 0`:** CI or test infrastructure that other PRs benefit
+  from (for example mcp-synology #275, faster vdsm caching).
+- **`merge-order: 1`–`3`:** PRs that depend on each other or touch the
+  same files (a multi-part feature, or a fix and the test that needs
+  it), numbered in merge order.
+- **No label:** PRs unrelated to the others.
+- Renumber or remove them when the batch changes: a PR merges, or
+  another one joins.
 
 **Always comment when changing labels manually.** Post a PR comment
 explaining why (e.g., "Removing `QA Approved` — formatting fix
