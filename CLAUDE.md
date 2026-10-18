@@ -201,6 +201,14 @@ other open PRs behind.
   diff, so the PR loses `Ready for QA` until Dev pushes the fix and CI
   passes again.
 - Neither label is added or removed by hand.
+- **One push per round, not two.** When a PR is behind `main` and you're
+  pushing a QA fix, merge `main` in first and push once. Every push runs
+  CI (vdsm alone is about 14–17 min per DSM version), and the up-to-date
+  rule forces an update before merge anyway, so a fix pushed to a behind
+  branch and then a separate update cost two full runs and can invalidate
+  a QA round in progress. Push several quick fix commits together, too.
+  (mcp-synology #284 cancels superseded PR runs, but one push is still
+  cheaper than a cancelled one.)
 
 ### Merge order labels
 
