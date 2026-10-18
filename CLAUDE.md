@@ -209,6 +209,10 @@ other open PRs behind.
   a QA round in progress. Push several quick fix commits together, too.
   (mcp-synology #284 cancels superseded PR runs, but one push is still
   cheaper than a cancelled one.)
+  - Keep the `main` merge and the fix as **separate commits** in that one
+    push, so QA can tell "main merged in" from "Dev changed the PR".
+  - Don't push while `QA Active` is on unless QA asked for the fix: a
+    push resets the round.
 
 ### Merge order labels
 
