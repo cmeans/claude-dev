@@ -164,7 +164,8 @@ In those cases — and only those — the agent that opened the PR must:
    confirms, then push once. Note the result in the PR body
    (`Pre-QA review: N findings (M fixed, K declined: see below)` or
    `Pre-QA review: clean`). Skip it only for a clean merge of `main` with
-   no other changes. A merge that needed conflict resolution gets the review.
+   no other changes. A merge that needed conflict resolution gets the review,
+   and the PR body names the resolved files and how they were resolved.
 1. Dev finishes work → push triggers `Awaiting CI` automatically.
    While CI runs, `Dev Active` may coexist; remove `Dev Active` when
    ready.

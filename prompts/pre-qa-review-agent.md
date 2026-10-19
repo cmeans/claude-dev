@@ -200,7 +200,9 @@ idempotent, and anything that can leave things half done is destructive.
 ### 15. Merge state
 
 `git fetch && git merge-tree --write-tree origin/main HEAD` shows no conflicts, especially
-in the CHANGELOG.
+in the CHANGELOG. A merge of `main` that needed a hand resolution is named in the PR body:
+which files, and how they were resolved (`git show --remerge-diff <merge>` shows it). QA
+reads the merge too, and an unmentioned resolution is a finding (mcp-synology #291).
 
 ## Repo addenda
 
