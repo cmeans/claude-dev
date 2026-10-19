@@ -88,7 +88,7 @@ Who applies what — honor this boundary:
 | ---------------------- | -------------------------- | --- | ------------------ | ---------------------------------- |
 | `Dev Active`           | ✅ add/remove               |     |                    |                                    |
 | `Awaiting CI`          |                            |     |                    | ✅ `pr-labels.yml` on push          |
-| `Ready for QA`         | ✅ re-apply after fix       |     |                    | ✅ `pr-labels-ci.yml` on CI pass    |
+| `Ready for QA`         | ✅ body-only fix            |     |                    | ✅ `pr-labels-ci.yml` on CI pass    |
 | `QA Active`            |                            | ✅   |                    |                                    |
 | `Ready for QA Signoff` |                            | ✅   |                    |                                    |
 | `QA Failed`            |                            | ✅   |                    |                                    |
@@ -173,9 +173,12 @@ In those cases — and only those — the agent that opened the PR must:
 3. QA reviews → applies `Ready for QA Signoff` (pass, zero findings +
    codecov green) or `QA Failed` (any issue, however minor), removing
    `Ready for QA`.
-4. Dev fixes findings → re-applies `Ready for QA`, removing
-   `QA Failed`. Pushing also resets to `Awaiting CI` (the automation
-   handles cleanup).
+4. Dev fixes findings: adds `Dev Active` (which clears `QA Failed`),
+   fixes, pushes once, updates the PR body, then removes `Dev Active`.
+   The automation promotes to `Ready for QA` once CI passes. Never
+   hand-apply `Ready for QA` after a push: that skips the CI gate. Only
+   a fix to the PR body alone, with no push, swaps `QA Failed` →
+   `Ready for QA` by hand.
 5. **Maintainer (Chris) signs off → applies `QA Approved`** (merge
    gate), removing `Ready for QA Signoff`. `qa-gate.yml` flips the
    commit status to `success`; merge unblocks. **No agent applies this
@@ -190,34 +193,13 @@ it's the safety net.
 explaining why (e.g., "Removing `QA Approved` — formatting fix
 pushed after approval"). Audit trail.
 
-### PR notifications via Awareness
+### PR notifications
 
-When a PR reaches `Ready for QA` (either via automation or manual label), write
-a `pr-notify` entry to alert QA:
-
-```python
-add_context(
-    source="claude-dev",
-    tags=["pr-notify", "{repo}"],
-    description=(
-        f"PR #{pr_number}: ready-for-qa — {pr_title} "
-        f"| branch: {branch} "
-        f"| summary: {summary}"
-    ),
-    expires_days=1
-)
-```
-
-Example description:
-`"PR #68: ready-for-qa — fix: escape HTML cells | branch: fix/xss | summary: Escapes HTML in cell values to prevent XSS"`
-
-This includes:
-- After initial PR creation when CI passes and `Ready for QA` is applied
-- After fixing QA findings and re-applying `Ready for QA`
-
-The 1-minute `/loop` cron (defined in global CLAUDE.md) watches for `qa-failed`
-notifications from QA. When one arrives, report it to the user and begin
-addressing the findings.
+Don't write `pr-notify` Awareness entries. The `/loop 1m` consumer was
+deleted on 2026-04-24 as too costly (see the global CLAUDE.md), so the
+maintainer passes on QA's verdict and his own approval by hand
+(`PR #N QA Failed`, `PR #N QA Approved`).
+When one arrives, read QA's latest round on the PR and start the next round.
 
 ### PR body conventions
 

@@ -13,7 +13,14 @@ merged, and a few findings fit none of them.
 
 ## Usage
 
-Commit locally, but don't push. Then:
+The full loop for a round: add `Dev Active` to the PR (`gh pr edit N --add-label "Dev Active"`)
+before touching it, fix, commit locally without pushing, run this review, fix what it confirms,
+push once, update the PR body, then remove `Dev Active`. The label tells QA not to start, and
+in repos with the label automation (mcp-clipboard, mcp-synology, mcp-awareness) promotion to
+`Ready for QA` waits for its removal. On the first push there's no PR yet,
+so there's nothing to label.
+
+After committing:
 
 ```
 Agent(
