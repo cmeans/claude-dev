@@ -211,6 +211,25 @@ in the CHANGELOG. A merge of `main` that needed a hand resolution is named in th
 which files, and how they were resolved (`git show --remerge-diff <merge>` shows it). QA
 reads the merge too, and an unmentioned resolution is a finding (mcp-synology #291).
 
+### 16. Class sweep: siblings of the bug being fixed
+
+When the change fixes a bug, the bug is an instance of a class. Name the class in one
+line, then search the whole repo, not just the diff, for other instances, and report each
+one with file:line: fixed here, already filed (give the issue), or new.
+
+Some classes this has missed, in mcp-synology:
+- A fix for a *missing* destination (#371) that didn't ask about a *denied* one (#383).
+- A cleanup shielded from cancellation in one task helper but not in its siblings
+  (Search, DirSize).
+- A success reply that claims work on a no-op (`create_folder` "Created" #384; Photos
+  "Copied … 0 skipped" #363).
+- A description that promises output only some accounts or versions get (`get_system_info`
+  and the CPU).
+
+Each was found one instance per round, and its siblings surfaced rounds later. A sibling
+that is out of scope still gets an issue before QA (see section 6), with the class named so
+the next fix can close them together.
+
 ## Repo addenda
 
 ### mcp-synology
@@ -223,10 +242,11 @@ reads the merge too, and an unmentioned resolution is a finding (mcp-synology #2
 - **JSON-quoted values:** free-text DSM parameters go through `dsm_str()` (#121).
 - **Secrets:** new secret-bearing parameters go in `_SENSITIVE_PARAMS`. Probe with
   `SYNOLOGY_LOG_LEVEL=debug`.
-- **Background tasks:** `try/finally` cleanup, and the hand-off rules in CLAUDE.md (#162, #245).
+- **Background tasks:** `try/finally` cleanup, and the hand-off rules in CLAUDE.md (#162, #245). A cleanup that awaits (stop, clean, abort) must be shielded: the MCP SDK cancels through a level-triggered anyio scope, so an unshielded first await is canceled again and the NAS task is orphaned (`anyio.CancelScope(shield=True)`, as `filestation/tasks.py` does).
 - **Specs:** `tests/test_module_specs.py` checks tool names, tiers, parameters and
   descriptions. Response shapes and annotations in the spec need a manual read.
-- **vdsm:** a bake change bumps `BAKE_VERSION`. Run vdsm locally on both DSM versions before
-  pushing a vdsm or bake change.
+- **vdsm:** a bake change bumps `BAKE_VERSION`. Run vdsm locally on all four DSM versions CI
+  tests (7.1, 7.2.2, 7.3.2, 7.4.1) before pushing a vdsm or bake change. The vdsm extra must be
+  installed (`uv sync --extra dev --extra vdsm`), or every vdsm test errors at setup.
 - **CHANGELOG:** only Added, Changed or Fixed, in the form `- **Title** (#N) — …`, adding
   `closes #M` when there's an issue.
