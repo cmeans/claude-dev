@@ -96,7 +96,7 @@ Who applies what — honor this boundary:
 | `CI Failed`            |                            |     |                    | ✅ `pr-labels-ci.yml` on CI fail    |
 | `Behind main`          | ❌ never by hand            | ❌ never by hand |              | ✅ `pr-behind-main.yml`             |
 | `Merge conflict`       | ❌ never by hand            | ❌ never by hand |              | ✅ `pr-behind-main.yml`             |
-| `merge-order: 0`–`6`   | ✅ propose                  | read only | ✅ sets / overrides |                                    |
+| `merge-order: N`       | ✅ apply as a proposal      | read only | ✅ sets / overrides |                                    |
 
 **`QA Approved` is maintainer-only.** No agent — Dev, QA, or otherwise
 — may apply this label under any circumstance. Not for routine merges.
@@ -195,15 +195,19 @@ other open PRs behind.
 - **`Behind main` blocks the merge, not the review.** A clean merge of
   `main` doesn't change what a PR does. Dev updates the branch **just
   before merging**: merge `origin/main` into it (a merge commit, never a
-  force push), let CI rerun, and QA re-approves after checking that the
-  PR's own diff is unchanged.
-- **`Merge conflict` holds back review.** Resolving it changes the
-  diff, so the PR loses `Ready for QA` until Dev pushes the fix and CI
-  passes again.
+  force push), and let CI rerun. The push removes `Ready for QA Signoff`
+  and `QA Approved`: QA re-applies `Ready for QA Signoff` after checking
+  that the PR's own diff is unchanged, and the maintainer re-applies
+  `QA Approved`.
+- **`Merge conflict` holds back review.** Dev resolves it the same way:
+  merge `origin/main` into the branch, resolve, and push (never a rebase
+  or force push), naming the hand-resolved files in the PR body.
+  Resolving it changes the diff, so the PR loses `Ready for QA` until
+  the push's CI passes again.
 - Neither label is added or removed by hand.
 - **One push per round, not two.** When a PR is behind `main` and you're
   pushing a QA fix, merge `main` in first and push once. Every push runs
-  CI (vdsm alone is about 14–17 min per DSM version), and the up-to-date
+  the full CI, vdsm included, and the up-to-date
   rule forces an update before merge anyway, so a fix pushed to a behind
   branch and then a separate update cost two full runs and can invalidate
   a QA round in progress. Push several quick fix commits together, too.
@@ -216,10 +220,11 @@ other open PRs behind.
 
 ### Merge order labels
 
-`merge-order: 0`–`6` say which PRs merge first, to cut the update and
-re-review churn above. **Dev proposes, the maintainer sets or
-overrides, QA only reads them** (QA reviews `Ready for QA` PRs in that
-order: 0, then 1–6, then unlabeled). **The same number means no order
+`merge-order: N` labels say which PRs merge first, to cut the update
+and re-review churn above (mcp-synology has 0–6; other repos may have
+fewer). **Dev applies them as a proposal, with a PR comment; the
+maintainer can override; QA only reads them** (QA reviews `Ready for
+QA` PRs in that order: lowest number first, then unlabeled). **The same number means no order
 between them:** PRs that share a number can merge in either order.
 
 When Dev proposes one, it says why in a `## Merge order` section of the
@@ -240,8 +245,8 @@ PR body:
 
 **After every merge (standard practice, maintainer 2026-10-18):**
 
-1. Find the next PR: the lowest `merge-order` label; with none left, the
-   oldest open PR (lowest number).
+1. Find the next PR: the lowest `merge-order` label (among PRs sharing
+   it, the oldest); with none left, the oldest open PR (lowest number).
 2. Fix the labels if the batch changed: renumber, and drop a label
    whose reason no longer holds. If Dev would update PRs in another
    order than the labels give (a ready PR on the critical path, or one
@@ -305,6 +310,8 @@ Every PR body must include:
        links to https://github.com/sponsors/cmeans
   2. - [ ] Run `gh pr checks {pr}` — all green
   ```
+- **`## Merge order`** when the PR has a `merge-order` label: why it
+  has that number.
 - **`Closes #N`** for any tracked issue.
 
 ## Bot identity (`cmeans-claude-dev[bot]`)

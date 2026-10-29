@@ -86,21 +86,22 @@ gh pr view {{PR_NUMBER}} --json state --jq .state
 ```
 
 When state is "MERGED":
-1. Notify: `notify-send -u normal "PR #{{PR_NUMBER}} Merged" "Rebasing #{{NEXT_PR}} next"`
-2. Rebase the next PR (assumes a local clone with the branch available):
+1. Notify: `notify-send -u normal "PR #{{PR_NUMBER}} Merged" "Updating #{{NEXT_PR}} next"`
+2. Merge `main` into the next PR (assumes a local clone with the branch
+   available; never a rebase or force push):
    ```
    git fetch origin main {{NEXT_BRANCH}}
    git checkout {{NEXT_BRANCH}}
-   git rebase origin/main
+   git merge --no-edit origin/main
    ```
-3. If rebase has conflicts: notify dev and stop. Do not force anything.
-4. If rebase is clean:
+3. If the merge has conflicts: `git merge --abort`, notify dev and stop.
+4. If the merge is clean:
    ```
-   git push origin {{NEXT_BRANCH}} --force-with-lease
+   git push origin {{NEXT_BRANCH}}
    ```
 5. The push will trigger on-push which adds Awaiting CI.
 6. Remove Dev Active if present: `gh pr edit {{NEXT_PR}} --remove-label "Dev Active"`
-7. Notify: `notify-send -u normal "PR #{{NEXT_PR}} Rebased and Pushed" "CI running"`
+7. Notify: `notify-send -u normal "PR #{{NEXT_PR}} Updated and Pushed" "CI running"`
 8. Report and stop. A new lifecycle agent will be dispatched for #{{NEXT_PR}}.
 
 ## Important
@@ -130,6 +131,6 @@ When state is "MERGED":
 For a queue of PRs 114 → 113 → 115:
 
 1. Dispatch lifecycle agent for #114 with NEXT_PR=113, NEXT_BRANCH=fix/intention-fired-transition
-2. Agent handles #114 CI/labels, waits for merge, rebases #113
+2. Agent handles #114 CI/labels, waits for merge, merges main into #113
 3. Dispatch new lifecycle agent for #113 with NEXT_PR=115, NEXT_BRANCH=...
 4. Repeat
