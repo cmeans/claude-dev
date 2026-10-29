@@ -94,6 +94,9 @@ Who applies what — honor this boundary:
 | `QA Failed`            |                            | ✅   |                    |                                    |
 | **`QA Approved`**      | ❌ **never**                | ❌ **never** | ✅ **only Chris**   |                                    |
 | `CI Failed`            |                            |     |                    | ✅ `pr-labels-ci.yml` on CI fail    |
+| `Behind main`          | ❌ never by hand            | ❌ never by hand |              | ✅ `pr-behind-main.yml`             |
+| `Merge conflict`       | ❌ never by hand            | ❌ never by hand |              | ✅ `pr-behind-main.yml`             |
+| `merge-order: N`       | ✅ apply as a proposal      | read only | ✅ sets / overrides |                                    |
 
 **`QA Approved` is maintainer-only.** No agent — Dev, QA, or otherwise
 — may apply this label under any circumstance. Not for routine merges.
@@ -120,6 +123,12 @@ Three workflows handle most label transitions automatically:
 - **`qa-gate.yml`** — posts a `QA Gate` commit status that becomes
   `success` only when `QA Approved` is present. Merges blocked by
   branch protection until then.
+- **`pr-behind-main.yml`** (mcp-synology, #274) — on every push to `main`
+  and every push to a PR: `Behind main` when the branch is missing
+  commits from `main`, `Merge conflict` when GitHub says it can't merge
+  cleanly; removes each when it no longer applies. With mcp-synology
+  #276 it also removes `Ready for QA` when it adds `Merge conflict`, and
+  the CI promotion skips a PR that has it.
 
 In the normal case Dev does nothing for label transitions after pushing
 — the automation handles it. Dev's job is to apply `Dev Active` while
@@ -177,6 +186,81 @@ that has `QA Approved` — code, docs, conflict resolution, anything —
 the automation removes it and re-runs the cycle. Don't fight this;
 it's the safety net.
 
+### Behind main and merge conflicts
+
+`main`'s ruleset requires up-to-date branches (mcp-synology: the
+maintainer kept that rule on 2026-10-18), so every merge leaves the
+other open PRs behind.
+
+- **`Behind main` blocks the merge, not the review.** A clean merge of
+  `main` doesn't change what a PR does. Dev updates the branch **just
+  before merging**: merge `origin/main` into it (a merge commit, never a
+  force push), and let CI rerun. The push removes `Ready for QA Signoff`
+  and `QA Approved`: QA re-applies `Ready for QA Signoff` after checking
+  that the PR's own diff is unchanged, and the maintainer re-applies
+  `QA Approved`.
+- **`Merge conflict` holds back review.** Dev resolves it the same way:
+  merge `origin/main` into the branch, resolve, and push (never a rebase
+  or force push), naming the hand-resolved files in the PR body.
+  Resolving it changes the diff, so the PR loses `Ready for QA` until
+  the push's CI passes again.
+- Neither label is added or removed by hand.
+- **One push per round, not two.** When a PR is behind `main` and you're
+  pushing a QA fix, merge `main` in first and push once. Every push runs
+  the full CI, vdsm included, and the up-to-date
+  rule forces an update before merge anyway, so a fix pushed to a behind
+  branch and then a separate update cost two full runs and can invalidate
+  a QA round in progress. Push several quick fix commits together, too.
+  (mcp-synology #284 cancels superseded PR runs, but one push is still
+  cheaper than a cancelled one.)
+  - Keep the `main` merge and the fix as **separate commits** in that one
+    push, so QA can tell "main merged in" from "Dev changed the PR".
+  - Don't push while `QA Active` is on unless QA asked for the fix: a
+    push resets the round.
+
+### Merge order labels
+
+`merge-order: N` labels say which PRs merge first, to cut the update
+and re-review churn above (mcp-synology has 0–6; other repos may have
+fewer). **Dev applies them as a proposal, with a PR comment; the
+maintainer can override; QA only reads them** (QA reviews `Ready for
+QA` PRs in that order: lowest number first, then unlabeled). **The same number means no order
+between them:** PRs that share a number can merge in either order.
+
+When Dev proposes one, it says why in a `## Merge order` section of the
+PR body:
+
+- **`merge-order: 0`:** CI or test infrastructure that other PRs benefit
+  from (for example mcp-synology #275, faster vdsm caching).
+- **`merge-order: 1`:** PRs in the batch that don't depend on another
+  open PR.
+- **`merge-order: 2`–`6`:** only for a real dependency (a multi-part
+  feature, or a fix and the test that needs it: the PR merges after
+  every lower-numbered PR it needs) or a deliberate sequencing choice.
+  A conflict alone isn't a dependency: whichever PR merges second
+  resolves it.
+- **No label:** when no batch is being ordered.
+- Renumber or remove them when the batch changes: a PR merges, or
+  another one joins.
+
+**After every merge (standard practice, maintainer 2026-10-18):**
+
+1. Find the next PR: the lowest `merge-order` label (among PRs sharing
+   it, the oldest); with none left, the oldest open PR (lowest number).
+2. Fix the labels if the batch changed: renumber, and drop a label
+   whose reason no longer holds. If Dev would update PRs in another
+   order than the labels give (a ready PR on the critical path, or one
+   whose files overlap another's), relabel so the labels show that
+   order, comment on each changed PR, then follow the labels.
+3. Update **only that PR** by merging `origin/main` into it (one push,
+   no force), so QA can start on it while CI runs. Do it right away,
+   even at `Ready for QA`, `Ready for QA Signoff` or approved
+   (maintainer, 2026-10-19). Not while it has `QA Active`; and if the
+   merge changed the vdsm golden image, wait until main's run has saved
+   the new cache first.
+4. Leave the other PRs alone until they're next: updating them all
+   after every merge is chasing `main`.
+
 **Always comment when changing labels manually.** Post a PR comment
 explaining why (e.g., "Removing `QA Approved` — formatting fix
 pushed after approval"). Audit trail.
@@ -226,6 +310,8 @@ Every PR body must include:
        links to https://github.com/sponsors/cmeans
   2. - [ ] Run `gh pr checks {pr}` — all green
   ```
+- **`## Merge order`** when the PR has a `merge-order` label: why it
+  has that number.
 - **`Closes #N`** for any tracked issue.
 
 ## Bot identity (`cmeans-claude-dev[bot]`)
