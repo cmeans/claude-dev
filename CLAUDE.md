@@ -96,7 +96,7 @@ Who applies what — honor this boundary:
 | `CI Failed`            |                            |     |                    | ✅ `pr-labels-ci.yml` on CI fail    |
 | `Behind main`          | ❌ never by hand            | ❌ never by hand |              | ✅ `pr-behind-main.yml`             |
 | `Merge conflict`       | ❌ never by hand            | ❌ never by hand |              | ✅ `pr-behind-main.yml`             |
-| `merge-order: 0`–`3`   | ✅ propose                  | read only | ✅ sets / overrides |                                    |
+| `merge-order: 0`–`6`   | ✅ propose                  | read only | ✅ sets / overrides |                                    |
 
 **`QA Approved` is maintainer-only.** No agent — Dev, QA, or otherwise
 — may apply this label under any circumstance. Not for routine merges.
@@ -216,20 +216,25 @@ other open PRs behind.
 
 ### Merge order labels
 
-`merge-order: 0`–`3` say which PRs merge first, to cut the update and
+`merge-order: 0`–`6` say which PRs merge first, to cut the update and
 re-review churn above. **Dev proposes, the maintainer sets or
 overrides, QA only reads them** (QA reviews `Ready for QA` PRs in that
-order: 0, then 1–3, then unlabeled).
+order: 0, then 1–6, then unlabeled). **The same number means no order
+between them:** PRs that share a number can merge in either order.
 
 When Dev proposes one, it says why in a `## Merge order` section of the
 PR body:
 
 - **`merge-order: 0`:** CI or test infrastructure that other PRs benefit
   from (for example mcp-synology #275, faster vdsm caching).
-- **`merge-order: 1`–`3`:** PRs that depend on each other or touch the
-  same files (a multi-part feature, or a fix and the test that needs
-  it), numbered in merge order.
-- **No label:** PRs unrelated to the others.
+- **`merge-order: 1`:** PRs in the batch that don't depend on another
+  open PR.
+- **`merge-order: 2`–`6`:** only for a real dependency (a multi-part
+  feature, or a fix and the test that needs it: the PR merges after
+  every lower-numbered PR it needs) or a deliberate sequencing choice.
+  A conflict alone isn't a dependency: whichever PR merges second
+  resolves it.
+- **No label:** when no batch is being ordered.
 - Renumber or remove them when the batch changes: a PR merges, or
   another one joins.
 
@@ -238,11 +243,16 @@ PR body:
 1. Find the next PR: the lowest `merge-order` label; with none left, the
    oldest open PR (lowest number).
 2. Fix the labels if the batch changed: renumber, and drop a label
-   whose reason no longer holds.
+   whose reason no longer holds. If Dev would update PRs in another
+   order than the labels give (a ready PR on the critical path, or one
+   whose files overlap another's), relabel so the labels show that
+   order, comment on each changed PR, then follow the labels.
 3. Update **only that PR** by merging `origin/main` into it (one push,
-   no force), so QA can start on it while CI runs. Not while it has
-   `QA Active`; and if the merge changed the vdsm golden image, wait
-   until main's run has saved the new cache first.
+   no force), so QA can start on it while CI runs. Do it right away,
+   even at `Ready for QA`, `Ready for QA Signoff` or approved
+   (maintainer, 2026-10-19). Not while it has `QA Active`; and if the
+   merge changed the vdsm golden image, wait until main's run has saved
+   the new cache first.
 4. Leave the other PRs alone until they're next: updating them all
    after every merge is chasing `main`.
 
