@@ -38,6 +38,44 @@ PR body: `Pre-QA review: N findings (M fixed, K declined: see below)`, or
 The reviewer reports and doesn't fix. Dev decides what to change, and anything Dev decides not
 to fix goes into the PR body with a reason.
 
+**Every push gets the review, using this template as written.** That includes one-line and
+docs-only fix pushes; only a clean merge of main is exempt. A prompt Dev writes for the occasion
+isn't a substitute: it carries the author's view of what matters, which is what this review is
+there to get past. (The maintainer, 2026-10-28, after #437 failed QA round 2 on a stale claim
+that checklist item 2 covers: that round's review was a hand-written prompt, and the fix push
+had none.)
+
+**Dev's own sweep.** After fixing any claim, wording, name or default, whoever reported it,
+`git grep` the repo for the old wording (item 2's method) before committing. A finding names one
+place; the same sentence is often in two or three.
+
+## Learning loop and tracking
+
+The checklist only improves if each QA round feeds back into it. On every QA verdict (Failed,
+or passed to signoff), sort each QA finding into one of three classes:
+
+| Class | Meaning | What to do |
+|---|---|---|
+| **Reviewer miss** | The checklist covers it, the review ran this template, and the reviewer didn't flag it | Sharpen that item's wording or method, with the finding as an example |
+| **Execution miss** | The checklist covers it, but the review didn't run as written (hand-written prompt, skipped push), or Dev fixed one place and didn't sweep | Nothing to add to the checklist; note it, and follow the process |
+| **Checklist gap** | No item covers it | Add an item, or extend the closest one, with the finding as its example, in the same session |
+
+Commit checklist changes to this file in their own small PR.
+
+**Track the results** in one living Awareness note per repo: `logical_key`
+`pre-qa-tracking-<repo>`, tags `["<repo>", "qa", "metrics"]` (existing ones), updated in place
+after each QA verdict. Per round, record: PR, round, pre-QA findings (fixed / declined), QA
+verdict, and each QA finding with its class. Every ten or so rounds, or when the maintainer asks,
+summarize:
+
+- QA findings per round, and how many rounds a PR takes to pass, against the earlier rounds
+- the share of each class: reviewer misses point at the checklist's wording, execution misses at
+  the process, gaps at the checklist's coverage
+- what the review costs (an agent run per push) against the rounds it saves
+
+If QA findings per round don't fall, or the review adds work without saving rounds, say so and
+propose a change (or dropping a part of it), rather than keep running it unexamined.
+
 ## Variables
 
 | Variable | Value |
