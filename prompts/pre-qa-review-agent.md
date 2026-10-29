@@ -1,15 +1,15 @@
 # Pre-QA Review Agent
 
-Dispatch this agent **before every push to a PR branch**: the first push, and each fix push
-after `QA Failed`. It reviews the change the way QA does, so findings get fixed before QA's
-round trip: a QA round, then a full CI rerun for each fix push (on mcp-synology, about 12–16
-minutes with vdsm on a cache hit).
+Dispatch this agent **before every push to a PR branch**: every push but a clean merge of main,
+or a clean rebase onto it, with no other changes (see Usage). It reviews the change the way QA
+does, so findings get fixed before QA's round trip: a QA round, then a full CI rerun for each
+fix push (on mcp-synology, about 12–16 minutes with vdsm on a cache hit).
 
 The checklist below comes from QA's review comments on the 80 most recent mcp-synology PRs
 (#104–#288, mined 2026-10-18): 203 findings across 60 PRs with a QA Failed round. 119 of them
-(about 60%) were about the docs, the PR body, the CHANGELOG or scope, not the code. Sections are
-ordered by how often QA caught each kind. The per-section counts are approximate: categories were
-merged, and a few findings fit none of them.
+(about 60%) were about the docs, the PR body, the CHANGELOG or scope, not the code. Sections 1–14
+are ordered by how often QA caught each kind; 15 and 16 were added later, from later rounds. The
+per-section counts are approximate: categories were merged, and a few findings fit none of them.
 
 ## Usage
 
@@ -31,7 +31,8 @@ Agent(
 ```
 
 Use a fresh agent (not a fork) so it doesn't share the author's reasoning. Fix what it
-confirms, rerun it if the fixes were non-trivial, then push once. Record the result in the
+confirms, then push once. Fixes for this review's own findings need a second run only if they
+were non-trivial, and only after Dev's sweep (below). Record the result in the
 PR body: `Pre-QA review: N findings (M fixed, K declined: see below)`, or
 `Pre-QA review: clean`. Don't cite a SHA there, since a later rebase changes it.
 
@@ -39,15 +40,16 @@ The reviewer reports and doesn't fix. Dev decides what to change, and anything D
 to fix goes into the PR body with a reason.
 
 **Every push gets the review, using this template as written.** That includes one-line and
-docs-only fix pushes; only a clean merge of main is exempt. A prompt Dev writes for the occasion
-isn't a substitute: it carries the author's view of what matters, which is what this review is
-there to get past. (The maintainer, 2026-10-28, after #437 failed QA round 2 on a stale claim
-that checklist item 2 covers: that round's review was a hand-written prompt, and the fix push
-had none.)
+docs-only fix pushes. Only a clean merge of main, or a clean rebase onto it, with no other
+changes is exempt. A prompt Dev writes for the occasion isn't a substitute: it carries the
+author's view of what matters, which is what this review is there to get past. (The maintainer,
+2026-10-28, after mcp-synology #437 failed QA round 2 on a stale claim that checklist item 2
+covers: that round's review was a hand-written prompt, and the fix push had none.)
 
 **Dev's own sweep.** After fixing any claim, wording, name or default, whoever reported it,
 `git grep` the repo for the old wording (item 2's method) before committing. A finding names one
-place; the same sentence is often in two or three.
+place; the same sentence is often in two or three. (`git grep` and reading command output through
+a pipe are fine here, whatever a repo's rule on `grep` and `tail` for reading files.)
 
 ## Learning loop and tracking
 
@@ -106,7 +108,7 @@ Don't edit {{WORKTREE}}. Do repros, mutation checks and old-version comparisons 
 `git -C {{WORKTREE}} worktree remove --force {{SCRATCH}}/<name>` when you're done.
 Shell commands such as git grep, pytest and piped tails are fine here.
 
-Work through the checklist in ~/github.com/cmeans/claude-dev/prompts/pre-qa-review-agent.md,
+Work through the checklist in /home/cmeans/github.com/cmeans/claude-dev/prompts/pre-qa-review-agent.md,
 including the addendum for {{REPO}} if there is one. For each section, either give findings
 or write "checked: <how>".
 
@@ -274,10 +276,14 @@ the next fix can close them together.
 
 - **DSM captures:** Download Station fixtures come from real replies
   (`tests/modules/downloadstation/fixtures/`), and its mocks route by `api`/`method`/`version`
-  (`tests/modules/downloadstation/dsm.py`). New reply shapes in any module need a capture. Check both DSM 7.1 and 7.2.2, and admin vs
+  (`tests/modules/downloadstation/dsm.py`). New reply shapes in any module need a capture. Check every DSM version CI tests (7.1, 7.2.2,
+  7.3.2, 7.4.1), and admin vs
   non-admin (`mcptest`). A per-task 405 vs a whole-call 101 was described wrongly three
   times; count per-item `error` fields.
 - **JSON-quoted values:** free-text DSM parameters go through `dsm_str()` (#121).
+- **Real-NAS captures:** anything from the maintainer's NAS goes through
+  `scripts/scrub_nas_capture.py` and is named `<name>-realnas.json` (#428); specs, PR bodies
+  and docs quote only scrubbed values.
 - **Secrets:** new secret-bearing parameters go in `_SENSITIVE_PARAMS`. Probe with
   `SYNOLOGY_LOG_LEVEL=debug`.
 - **Background tasks:** `try/finally` cleanup, and the hand-off rules in CLAUDE.md (#162, #245). A cleanup that awaits (stop, clean, abort) must be shielded: the MCP SDK cancels through a level-triggered anyio scope, so an unshielded first await is canceled again and the NAS task is orphaned (`anyio.CancelScope(shield=True)`, as `filestation/tasks.py` does).

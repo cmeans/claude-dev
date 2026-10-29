@@ -88,7 +88,7 @@ Who applies what — honor this boundary:
 | ---------------------- | -------------------------- | --- | ------------------ | ---------------------------------- |
 | `Dev Active`           | ✅ add/remove               |     |                    |                                    |
 | `Awaiting CI`          |                            |     |                    | ✅ `pr-labels.yml` on push          |
-| `Ready for QA`         | ✅ body-only fix            |     |                    | ✅ `pr-labels-ci.yml` on CI pass    |
+| `Ready for QA`         | ✅ body-only fix; no-automation repos after CI |     |                    | ✅ `pr-labels-ci.yml` on CI pass    |
 | `QA Active`            |                            | ✅   |                    |                                    |
 | `Ready for QA Signoff` |                            | ✅   |                    |                                    |
 | `QA Failed`            |                            | ✅   |                    |                                    |
@@ -157,14 +157,14 @@ In those cases — and only those — the agent that opened the PR must:
 
 ### The standard handoff sequence
 
-0. **Before every push** (the first one and each fix push), run the
+0. **Before every push** (all but a clean merge of `main`, below), run the
    pre-QA review agent: `prompts/pre-qa-review-agent.md`. It's a fresh
    agent that reviews the committed diff against a checklist built from
    QA's past findings and reports only what it reproduced. Fix what it
    confirms, then push once. Note the result in the PR body
    (`Pre-QA review: N findings (M fixed, K declined: see below)` or
-   `Pre-QA review: clean`). Skip it only for a clean merge of `main` with
-   no other changes. A merge that needed conflict resolution gets the review,
+   `Pre-QA review: clean`). Skip it only for a clean merge of `main`, or a
+   clean rebase onto it, with no other changes. A merge that needed conflict resolution gets the review,
    and the PR body names the resolved files and how they were resolved.
 1. Dev finishes work → push triggers `Awaiting CI` automatically.
    While CI runs, `Dev Active` may coexist; remove `Dev Active` when
@@ -175,10 +175,14 @@ In those cases — and only those — the agent that opened the PR must:
    `Ready for QA`.
 4. Dev fixes findings: adds `Dev Active` (which clears `QA Failed`),
    fixes, pushes once, updates the PR body, then removes `Dev Active`.
-   The automation promotes to `Ready for QA` once CI passes. Never
-   hand-apply `Ready for QA` after a push: that skips the CI gate. Only
-   a fix to the PR body alone, with no push, swaps `QA Failed` →
-   `Ready for QA` by hand.
+   In a repo with the label automation, it promotes to `Ready for QA`
+   once CI passes. Never hand-apply `Ready for QA` before CI passes: that
+   skips the CI gate. The exceptions: a fix to the PR body alone, with no
+   push, swaps `QA Failed` → `Ready for QA` by hand; the manual monitor
+   and the lifecycle agent's fallback (above, and
+   `prompts/pr-lifecycle-agent.md`) apply it once CI is green; and in a
+   repo without the automation (claude-dev itself), Dev applies it by
+   hand once CI passes, or right after the push when the repo has no CI.
 5. **Maintainer (Chris) signs off → applies `QA Approved`** (merge
    gate), removing `Ready for QA Signoff`. `qa-gate.yml` flips the
    commit status to `success`; merge unblocks. **No agent applies this
