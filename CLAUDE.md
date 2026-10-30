@@ -88,7 +88,7 @@ Who applies what — honor this boundary:
 | ---------------------- | -------------------------- | --- | ------------------ | ---------------------------------- |
 | `Dev Active`           | ✅ add/remove               |     |                    |                                    |
 | `Awaiting CI`          |                            |     |                    | ✅ `pr-labels.yml` on push          |
-| `Ready for QA`         | ✅ re-apply after fix       |     |                    | ✅ `pr-labels-ci.yml` on CI pass    |
+| `Ready for QA`         | ✅ body-only fix; no-automation repos after CI |     |                    | ✅ `pr-labels-ci.yml` on CI pass    |
 | `QA Active`            |                            | ✅   |                    |                                    |
 | `Ready for QA Signoff` |                            | ✅   |                    |                                    |
 | `QA Failed`            |                            | ✅   |                    |                                    |
@@ -157,6 +157,43 @@ In those cases — and only those — the agent that opened the PR must:
 
 ### The standard handoff sequence
 
+0. **Before every push** (all but a clean merge of `main`, below), run the
+   pre-QA review agent: `prompts/pre-qa-review-agent.md`. It's a fresh
+   agent that reviews the committed diff against a checklist built from
+   QA's past findings and reports only what it reproduced. Fix what it
+   confirms, then push once. Note the result in the PR body
+   (`Pre-QA review: N findings (M fixed, K declined: see below; D of the N from Diff
+   mode)` or `Pre-QA review: clean`). Skip it only for a clean merge of `main`, or a
+   clean rebase onto it, with no other changes. A merge that needed conflict resolution gets the review,
+   and the PR body names the resolved files and how they were resolved.
+   - **Diff-mode pass** (maintainer, 2026-10-30; adapted from QA's step 4 in Claude-QA
+     `CLAUDE.md`, which runs after its own checks, gives test-only changes lens H and
+     always closes with `lenses A-E`): the same review runs the `critical-code-review`
+     skill (`anthropic-skills:critical-code-review`) in Diff mode on the branch, as the
+     template says. Its findings count like the checklist's.
+     - **Scope:** lenses add up by what the diff touches: A–E for source (workflows and
+       scripts included), F for tests, H for docs; one rotating perspective in every
+       case; all the skill's rules.
+     - **Rotation:** before dispatching, read the Awareness note
+       `review-lens-history-<name>` (`<name>`: repo name without the owner, e.g.
+       `review-lens-history-mcp-synology`; shared with QA; if missing, create it with tags
+       `["<name>", "review", "qa"]`) and pass the least recently used perspective as
+       `{{PERSPECTIVE}}`. After the review, re-read the note and add one line: date, mode,
+       who (Dev pre-QA), PR, head, perspective, findings. Add lines; don't rewrite others'.
+       If the note can't be read, pick by relevance, say so in the PR body, and add the
+       line later.
+     - **Variants:** for every finding from either pass, the whole repo is searched for
+       the same pattern. An instance out of the PR's scope gets an issue before QA
+       (checklist section 6).
+     - **No anchoring:** the reviewer runs Diff mode from the diff and code alone, before
+       reading the PR's comments or earlier QA rounds, then the checklist, and marks each
+       finding New, Known-open or Regressed.
+     - **Reporting:** findings are tagged by lens or perspective and marked Reproduced or
+       Read; the review ends with `Diff-mode: lenses <…>, perspective <X>, variants
+       checked: <n>`. The PR body's pre-QA line counts how many of the findings came from
+       Diff mode.
+     - **Tracking:** in `pre-qa-tracking-<name>`, record per round how many pre-QA
+       findings came from Diff mode, and which later QA findings it would have covered.
 1. Dev finishes work → push triggers `Awaiting CI` automatically.
    While CI runs, `Dev Active` may coexist; remove `Dev Active` when
    ready.
@@ -164,9 +201,16 @@ In those cases — and only those — the agent that opened the PR must:
 3. QA reviews → applies `Ready for QA Signoff` (pass, zero findings +
    codecov green) or `QA Failed` (any issue, however minor), removing
    `Ready for QA`.
-4. Dev fixes findings → re-applies `Ready for QA`, removing
-   `QA Failed`. Pushing also resets to `Awaiting CI` (the automation
-   handles cleanup).
+4. Dev fixes findings: adds `Dev Active` (which clears `QA Failed`),
+   fixes, pushes once, updates the PR body, then removes `Dev Active`.
+   In a repo with the label automation, it promotes to `Ready for QA`
+   once CI passes. Never hand-apply `Ready for QA` before CI passes: that
+   skips the CI gate. The exceptions: a fix to the PR body alone, with no
+   push, swaps `QA Failed` → `Ready for QA` by hand; the manual monitor
+   and the lifecycle agent's fallback (above, and
+   `prompts/pr-lifecycle-agent.md`) apply it once CI is green; and in a
+   repo without the automation (claude-dev itself), Dev applies it by
+   hand once CI passes, or right after the push when the repo has no CI.
 5. **Maintainer (Chris) signs off → applies `QA Approved`** (merge
    gate), removing `Ready for QA Signoff`. `qa-gate.yml` flips the
    commit status to `success`; merge unblocks. **No agent applies this
@@ -181,34 +225,13 @@ it's the safety net.
 explaining why (e.g., "Removing `QA Approved` — formatting fix
 pushed after approval"). Audit trail.
 
-### PR notifications via Awareness
+### PR notifications
 
-When a PR reaches `Ready for QA` (either via automation or manual label), write
-a `pr-notify` entry to alert QA:
-
-```python
-add_context(
-    source="claude-dev",
-    tags=["pr-notify", "{repo}"],
-    description=(
-        f"PR #{pr_number}: ready-for-qa — {pr_title} "
-        f"| branch: {branch} "
-        f"| summary: {summary}"
-    ),
-    expires_days=1
-)
-```
-
-Example description:
-`"PR #68: ready-for-qa — fix: escape HTML cells | branch: fix/xss | summary: Escapes HTML in cell values to prevent XSS"`
-
-This includes:
-- After initial PR creation when CI passes and `Ready for QA` is applied
-- After fixing QA findings and re-applying `Ready for QA`
-
-The 1-minute `/loop` cron (defined in global CLAUDE.md) watches for `qa-failed`
-notifications from QA. When one arrives, report it to the user and begin
-addressing the findings.
+Don't write `pr-notify` Awareness entries. The `/loop 1m` consumer was
+deleted on 2026-04-24 as too costly (see the global CLAUDE.md), so the
+maintainer passes on QA's verdict and his own approval by hand
+(`PR #N QA Failed`, `PR #N QA Approved`).
+When one arrives, read QA's latest round on the PR and start the next round.
 
 ### PR body conventions
 
