@@ -162,22 +162,26 @@ In those cases — and only those — the agent that opened the PR must:
    agent that reviews the committed diff against a checklist built from
    QA's past findings and reports only what it reproduced. Fix what it
    confirms, then push once. Note the result in the PR body
-   (`Pre-QA review: N findings (M fixed, K declined: see below)` or
-   `Pre-QA review: clean`). Skip it only for a clean merge of `main`, or a
+   (`Pre-QA review: N findings (M fixed, K declined: see below; D of the N from Diff
+   mode)` or `Pre-QA review: clean`). Skip it only for a clean merge of `main`, or a
    clean rebase onto it, with no other changes. A merge that needed conflict resolution gets the review,
    and the PR body names the resolved files and how they were resolved.
-   - **Diff-mode pass** (maintainer, 2026-10-30; mirrors QA's step 4 in Claude-QA
-     `CLAUDE.md`): the same review runs the `critical-code-review` skill
-     (`anthropic-skills:critical-code-review`) in Diff mode on the branch, as the template
-     says. Its findings count like the checklist's.
-     - **Scope:** lenses A–E on the changed code, plus one rotating perspective in every
-       case. Docs-only changes get rules 2 and 3 plus lens H instead of A–E; test-only,
-       lens F; mixed, A–E on the code and H on the docs.
+   - **Diff-mode pass** (maintainer, 2026-10-30; adapted from QA's step 4 in Claude-QA
+     `CLAUDE.md`, which runs after its own checks, gives test-only changes lens H and
+     always closes with `lenses A-E`): the same review runs the `critical-code-review`
+     skill (`anthropic-skills:critical-code-review`) in Diff mode on the branch, as the
+     template says. Its findings count like the checklist's.
+     - **Scope:** lenses add up by what the diff touches: A–E for source (workflows and
+       scripts included), F for tests, H for docs; one rotating perspective in every
+       case; all the skill's rules.
      - **Rotation:** before dispatching, read the Awareness note
-       `review-lens-history-<name>` (repo name without the owner, e.g.
-       `review-lens-history-mcp-synology`; shared with QA, create it if missing), pass the
-       least recently used perspective as `{{PERSPECTIVE}}`, and update the note after the
-       review: date, PR, head, perspective, findings.
+       `review-lens-history-<name>` (`<name>`: repo name without the owner, e.g.
+       `review-lens-history-mcp-synology`; shared with QA; if missing, create it with tags
+       `["<name>", "review", "qa"]`) and pass the least recently used perspective as
+       `{{PERSPECTIVE}}`. After the review, re-read the note and add one line: date, mode,
+       who (Dev pre-QA), PR, head, perspective, findings. Add lines; don't rewrite others'.
+       If the note can't be read, pick by relevance, say so in the PR body, and add the
+       line later.
      - **Variants:** for every finding from either pass, the whole repo is searched for
        the same pattern. An instance out of the PR's scope gets an issue before QA
        (checklist section 6).
@@ -186,9 +190,10 @@ In those cases — and only those — the agent that opened the PR must:
        finding New, Known-open or Regressed.
      - **Reporting:** findings are tagged by lens or perspective and marked Reproduced or
        Read; the review ends with `Diff-mode: lenses <…>, perspective <X>, variants
-       checked: <n>`. The PR body's pre-QA line counts the fixes that came from Diff mode.
-     - **Tracking:** in `pre-qa-tracking-<name>`, record per round which pre-QA findings
-       came from Diff mode, and which later QA findings it would have covered.
+       checked: <n>`. The PR body's pre-QA line counts how many of the findings came from
+       Diff mode.
+     - **Tracking:** in `pre-qa-tracking-<name>`, record per round how many pre-QA
+       findings came from Diff mode, and which later QA findings it would have covered.
 1. Dev finishes work → push triggers `Awaiting CI` automatically.
    While CI runs, `Dev Active` may coexist; remove `Dev Active` when
    ready.
