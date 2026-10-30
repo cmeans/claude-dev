@@ -166,6 +166,26 @@ In those cases — and only those — the agent that opened the PR must:
    `Pre-QA review: clean`). Skip it only for a clean merge of `main`, or a
    clean rebase onto it, with no other changes. A merge that needed conflict resolution gets the review,
    and the PR body names the resolved files and how they were resolved.
+   - **Diff-mode pass** (maintainer, 2026-10-30; mirrors QA's step 4 in Claude-QA
+     `CLAUDE.md`): the same review also runs the `critical-code-review` skill
+     (`anthropic-skills:critical-code-review`) in Diff mode on the branch. The checklist
+     still comes first and still decides what's a finding.
+     - **Scope:** lenses A–E on the changed code, plus one rotating perspective: the one
+       used least recently per the Awareness note `review-lens-history-{repo}` (shared
+       with QA; create it if missing, update it after the review). A docs-only or
+       test-only change gets rules 2 and 3 plus lens H instead.
+     - **Variants:** for every finding, from the checklist or Diff mode, search the whole
+       repo for the same pattern; report the other instances, or that there are none.
+       An out-of-scope instance gets an issue before QA (checklist section 6).
+     - **No anchoring:** the reviewer forms its findings before reading earlier QA rounds
+       or Dev's notes, then marks each New, Known-open or Regressed.
+     - **Reporting:** tag each finding by lens or perspective (`[B]`,
+       `[persp: model-as-user]`) and mark it Reproduced or Read; end with
+       `Diff-mode: lenses A-E, perspective <X>, variants checked: <n>`. The PR body's
+       pre-QA line says which fixes came from Diff mode.
+     - **Tracking:** in `pre-qa-tracking-{repo}`, record per round which pre-QA findings
+       came from Diff mode, and which later QA findings Diff mode would have covered, so
+       its value can be judged with the rest of the review.
 1. Dev finishes work → push triggers `Awaiting CI` automatically.
    While CI runs, `Dev Active` may coexist; remove `Dev Active` when
    ready.
