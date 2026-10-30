@@ -167,25 +167,28 @@ In those cases — and only those — the agent that opened the PR must:
    clean rebase onto it, with no other changes. A merge that needed conflict resolution gets the review,
    and the PR body names the resolved files and how they were resolved.
    - **Diff-mode pass** (maintainer, 2026-10-30; mirrors QA's step 4 in Claude-QA
-     `CLAUDE.md`): the same review also runs the `critical-code-review` skill
-     (`anthropic-skills:critical-code-review`) in Diff mode on the branch. The checklist
-     still comes first and still decides what's a finding.
-     - **Scope:** lenses A–E on the changed code, plus one rotating perspective: the one
-       used least recently per the Awareness note `review-lens-history-{repo}` (shared
-       with QA; create it if missing, update it after the review). A docs-only or
-       test-only change gets rules 2 and 3 plus lens H instead.
-     - **Variants:** for every finding, from the checklist or Diff mode, search the whole
-       repo for the same pattern; report the other instances, or that there are none.
-       An out-of-scope instance gets an issue before QA (checklist section 6).
-     - **No anchoring:** the reviewer forms its findings before reading earlier QA rounds
-       or Dev's notes, then marks each New, Known-open or Regressed.
-     - **Reporting:** tag each finding by lens or perspective (`[B]`,
-       `[persp: model-as-user]`) and mark it Reproduced or Read; end with
-       `Diff-mode: lenses A-E, perspective <X>, variants checked: <n>`. The PR body's
-       pre-QA line says which fixes came from Diff mode.
-     - **Tracking:** in `pre-qa-tracking-{repo}`, record per round which pre-QA findings
-       came from Diff mode, and which later QA findings Diff mode would have covered, so
-       its value can be judged with the rest of the review.
+     `CLAUDE.md`): the same review runs the `critical-code-review` skill
+     (`anthropic-skills:critical-code-review`) in Diff mode on the branch, as the template
+     says. Its findings count like the checklist's.
+     - **Scope:** lenses A–E on the changed code, plus one rotating perspective in every
+       case. Docs-only changes get rules 2 and 3 plus lens H instead of A–E; test-only,
+       lens F; mixed, A–E on the code and H on the docs.
+     - **Rotation:** before dispatching, read the Awareness note
+       `review-lens-history-<name>` (repo name without the owner, e.g.
+       `review-lens-history-mcp-synology`; shared with QA, create it if missing), pass the
+       least recently used perspective as `{{PERSPECTIVE}}`, and update the note after the
+       review: date, PR, head, perspective, findings.
+     - **Variants:** for every finding from either pass, the whole repo is searched for
+       the same pattern. An instance out of the PR's scope gets an issue before QA
+       (checklist section 6).
+     - **No anchoring:** the reviewer runs Diff mode from the diff and code alone, before
+       reading the PR's comments or earlier QA rounds, then the checklist, and marks each
+       finding New, Known-open or Regressed.
+     - **Reporting:** findings are tagged by lens or perspective and marked Reproduced or
+       Read; the review ends with `Diff-mode: lenses <…>, perspective <X>, variants
+       checked: <n>`. The PR body's pre-QA line counts the fixes that came from Diff mode.
+     - **Tracking:** in `pre-qa-tracking-<name>`, record per round which pre-QA findings
+       came from Diff mode, and which later QA findings it would have covered.
 1. Dev finishes work → push triggers `Awaiting CI` automatically.
    While CI runs, `Dev Active` may coexist; remove `Dev Active` when
    ready.

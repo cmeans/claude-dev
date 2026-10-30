@@ -33,7 +33,7 @@ Agent(
 Use a fresh agent (not a fork) so it doesn't share the author's reasoning. Fix what it
 confirms, then push once. Fixes for this review's own findings need a second run only if they
 were non-trivial, and only after Dev's sweep (below). Record the result in the
-PR body: `Pre-QA review: N findings (M fixed, K declined: see below)`, or
+PR body: `Pre-QA review: N findings (M fixed, K declined: see below; D from Diff mode)`, or
 `Pre-QA review: clean`. Don't cite a SHA there, since a later rebase changes it.
 
 The reviewer reports and doesn't fix. Dev decides what to change, and anything Dev decides not
@@ -66,8 +66,9 @@ Commit checklist changes to this file in their own small PR.
 
 **Track the results** in one living Awareness note per repo: `logical_key`
 `pre-qa-tracking-<repo>`, tags `["<repo>", "qa", "metrics"]` (existing ones), updated in place
-after each QA verdict. Per round, record: PR, round, pre-QA findings (fixed / declined), QA
-verdict, and each QA finding with its class. Every ten or so rounds, or when the maintainer asks,
+after each QA verdict. Per round, record: PR, round, pre-QA findings (fixed / declined, and how
+many came from the Diff-mode pass), QA verdict, and each QA finding with its class and whether
+Diff mode would have covered it. Every ten or so rounds, or when the maintainer asks,
 summarize:
 
 - QA findings per round, and how many rounds a PR takes to pass, against the earlier rounds
@@ -88,7 +89,7 @@ propose a change (or dropping a part of it), rather than keep running it unexami
 | `{{ISSUE_LINE}}` | `Issue: #N (read it with gh issue view N --comments).` If there's no issue, a sentence stating the intent instead |
 | `{{BODY_LINE}}` | First push: `PR body draft: <absolute path>` (write the draft to the session scratchpad first). Fix push: `PR: #N (gh pr view N --comments), including QA's latest round` |
 | `{{SCRATCH}}` | an absolute path in the session scratchpad, for the reviewer's repros and worktrees |
-| `{{PERSPECTIVE}}` | the rotating perspective used least recently per the Awareness note `review-lens-history-<repo>` (Dev reads it before dispatching, since subagents can't reach Awareness, and updates it after the review) |
+| `{{PERSPECTIVE}}` | the rotating perspective used least recently per the Awareness note `review-lens-history-<name>` (`<name>` is the repo name without the owner, e.g. `review-lens-history-mcp-synology`, shared with QA). Dev reads it before dispatching and updates it after the review, so the note has one writer per review |
 
 `gh` needs a valid token in the reviewer's shell. If the session uses the bot identity, tell the
 reviewer to `source ~/github.com/cmeans/claude-dev/github-app/activate.sh` in each Bash call that
@@ -109,17 +110,26 @@ Don't edit {{WORKTREE}}. Do repros, mutation checks and old-version comparisons 
 `git -C {{WORKTREE}} worktree remove --force {{SCRATCH}}/<name>` when you're done.
 Shell commands such as git grep, pytest and piped tails are fine here.
 
-Work through the checklist in /home/cmeans/github.com/cmeans/claude-dev/prompts/pre-qa-review-agent.md,
-including the addendum for {{REPO}} if there is one. For each section, either give findings
-or write "checked: <how>".
+First, from the diff and the code alone (before reading the PR's comments, earlier QA
+rounds or review notes), run the critical-code-review skill
+(anthropic-skills:critical-code-review) in Diff mode: lenses A-E on the changed code, plus
+the rotating perspective {{PERSPECTIVE}}. For a docs-only change use rules 2 and 3 plus
+lens H instead of lenses A-E; for a test-only change, rules 2 and 3 plus lens F; for a
+mixed change, lenses A-E on the code and H on the docs. The perspective applies in every
+case. Follow the skill's lenses, rules and variant analysis, but not its procedure for
+fanning out reviewers, publishing a document or recording the rotation: report here, in
+the table below. Dev updates the rotation note.
 
-Then run the critical-code-review skill (anthropic-skills:critical-code-review) in Diff
-mode on the same diff: lenses A-E on the changed code (a docs-only or test-only change:
-rules 2 and 3 plus lens H), plus the one rotating perspective {{PERSPECTIVE}}, and variant
-analysis across the whole repo for every finding, from the checklist or Diff mode. Form
-your findings before reading earlier QA rounds or review notes. Tag each finding by
-lens or perspective ([B], [persp: model-as-user]) and mark it Reproduced or Read. End
-with the line: Diff-mode: lenses A-E, perspective <X>, variants checked: <n>.
+Then read the PR and earlier QA rounds and work through the checklist in
+/home/cmeans/github.com/cmeans/claude-dev/prompts/pre-qa-review-agent.md, including the
+addendum for {{REPO}} if there is one. For each section, either give findings or write
+"checked: <how>". A Diff-mode finding is a finding like any other.
+
+For every finding, from either pass, search the whole repo for the same pattern and report
+the other instances, or that there are none. Tag each finding by lens or perspective ([B],
+[persp: model-as-user], or the checklist section), mark it Reproduced or Read, and mark it
+New, Known-open (an open issue or an earlier round already has it) or Regressed. End with
+the line: Diff-mode: lenses <A-E | F | H | A-E + H>, perspective <X>, variants checked: <n>.
 
 Return a table: # | severity (bug / nit / doc) | file:line | finding | evidence | suggested fix.
 End with what you couldn't check, and why.
