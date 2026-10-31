@@ -327,6 +327,13 @@ the next fix can close them together.
   non-admin (`mcptest`). A per-task 405 vs a whole-call 101 was described wrongly three
   times; count per-item `error` fields.
 - **JSON-quoted values:** free-text DSM parameters go through `dsm_str()` (#121).
+- **Class entry points (maintainer, 2026-10-31):** a class of bug is fixed once, in one
+  place, with a guard test (CLAUDE.md "Class entry points"; class issues #510-#514). Does
+  this change bypass a class entry point, or add a per-tool check that one should own? For
+  File Station paths: every path argument goes through `filestation/paths.py`
+  `resolve_paths` with a role in `PATH_PARAMS`, never an inline check in one tool; a new
+  path argument gets a role (the structural test fails otherwise) and a matrix row if it
+  needs a new spelling.
 - **Real-NAS captures:** anything from the maintainer's NAS goes through
   `scripts/scrub_nas_capture.py` and is named `<name>-realnas.json` (#428); specs, PR bodies
   and docs quote only scrubbed values.
