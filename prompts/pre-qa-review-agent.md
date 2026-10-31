@@ -51,17 +51,18 @@ covers: that round's review was a hand-written prompt, and the fix push had none
 place; the same sentence is often in two or three. (`git grep` and reading command output through
 a pipe are fine here, whatever a repo's rule on `grep` and `tail` for reading files.)
 
-**Fix pushes.** The previous round's fix is the likeliest source of the next round's findings:
-in mcp-synology on 2026-10-30/31, at least five QA findings were regressions or overcorrections
-introduced by the fix before them.
+**Fix pushes.** The previous round's fix is a common source of the next round's findings: in
+mcp-synology #469, #470 and #480 on 2026-10-30/31, about 6 of 35 QA findings were regressions or
+overcorrections introduced by the fix before them.
 - Before applying a fix that a reviewer or QA suggested, check the reason it gives with a probe.
-  A suggestion can rest on a false premise: "only a key with no value can be a comma-split
-  fragment" (mcp-synology #469 round 4) is false for `Spring,Password1: x`, and "as
-  `download_file` does" (#470, a pre-QA suggestion) was false for `download_file`'s own error.
-  Both reached QA.
+  A suggestion can rest on a false premise. #469 round 4 suggested the quoting hint only for a
+  key with no value, since "A comma-split fragment always arrives with no value"; that's false
+  for `Spring,Password1: x`. A pre-QA suggestion on #470 changed an error "as `download_file`
+  does", which `download_file` didn't. Both reached QA.
 - When the same reply or message has been reworded in two rounds and a third round fails it on
-  wording, ask the maintainer for the exact text rather than drafting a fourth version (#469
-  round 6, where the maintainer supplied it).
+  wording, ask the maintainer for the exact text rather than drafting another version. On #469
+  the hint was reworded after rounds 3 and 4, round 5 failed it again, and a fourth draft
+  failed round 6 before the maintainer supplied the text.
 
 ## Learning loop and tracking
 
@@ -147,6 +148,7 @@ earlier round already has it) or Regressed. End with the line:
 Diff-mode: lenses <the ones that applied, e.g. A-F or H>, perspective <X>, variants checked: <n>.
 
 Return a table: # | severity (bug / nit / doc) | file:line | finding | evidence | suggested fix.
+Check the premise of each suggested fix with a probe, and say which ones you probed.
 End with what you couldn't check, and why.
 ```
 
@@ -257,13 +259,14 @@ What can each new call raise, and what does the caller see?
 Is every sentence in each reply true on every path that reaches it?
 - List every path that reaches a new or changed reply, error or suggestion (each error code,
   each branch) and render each one; don't sample. A note added to every partial-delete error
-  read wrongly after four of DSM's codes (no advice of its own, advice that already says
-  "retry", advice ending in a list of characters, and a "may have already completed"), which a
-  check of two codes missed (mcp-synology #480 round 4).
+  read wrongly after nine of DSM's codes, in four ways (no advice of its own, advice that
+  already says "retry", advice ending in a list of characters, and "may have already
+  completed"), which checking two codes missed (mcp-synology #480 round 4).
 - For advice the reply gives, ask what a model that follows it literally would do, and whether
-  that does harm. "Quote the value with a comma" next to a flow mapping, whose entries are
-  joined by commas, can lead a model to quote a whole entry, which drops it with no error
-  (#469 round 6).
+  that does harm. Advice to quote a value with a comma inside `{…}`, in a flow mapping whose
+  entries are joined by commas, can lead a model to quote across the comma between two entries
+  (`username: "me, pasword: x"`), which merges them and drops the second with no error (#469
+  round 6).
 - Say "stopped", "deleted" or "created" only after it's confirmed.
 - An error's parameter name is the tool's own argument name.
 - A retryable flag matches idempotency.
