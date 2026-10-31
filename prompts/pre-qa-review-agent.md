@@ -51,6 +51,18 @@ covers: that round's review was a hand-written prompt, and the fix push had none
 place; the same sentence is often in two or three. (`git grep` and reading command output through
 a pipe are fine here, whatever a repo's rule on `grep` and `tail` for reading files.)
 
+**Fix pushes.** The previous round's fix is the likeliest source of the next round's findings:
+in mcp-synology on 2026-10-30/31, at least five QA findings were regressions or overcorrections
+introduced by the fix before them.
+- Before applying a fix that a reviewer or QA suggested, check the reason it gives with a probe.
+  A suggestion can rest on a false premise: "only a key with no value can be a comma-split
+  fragment" (mcp-synology #469 round 4) is false for `Spring,Password1: x`, and "as
+  `download_file` does" (#470, a pre-QA suggestion) was false for `download_file`'s own error.
+  Both reached QA.
+- When the same reply or message has been reworded in two rounds and a third round fails it on
+  wording, ask the maintainer for the exact text rather than drafting a fourth version (#469
+  round 6, where the maintainer supplied it).
+
 ## Learning loop and tracking
 
 The checklist only improves if each QA round feeds back into it. On every QA verdict (Failed,
@@ -243,6 +255,15 @@ What can each new call raise, and what does the caller see?
 ### 11. Reply and error text (about 9)
 
 Is every sentence in each reply true on every path that reaches it?
+- List every path that reaches a new or changed reply, error or suggestion (each error code,
+  each branch) and render each one; don't sample. A note added to every partial-delete error
+  read wrongly after four of DSM's codes (no advice of its own, advice that already says
+  "retry", advice ending in a list of characters, and a "may have already completed"), which a
+  check of two codes missed (mcp-synology #480 round 4).
+- For advice the reply gives, ask what a model that follows it literally would do, and whether
+  that does harm. "Quote the value with a comma" next to a flow mapping, whose entries are
+  joined by commas, can lead a model to quote a whole entry, which drops it with no error
+  (#469 round 6).
 - Say "stopped", "deleted" or "created" only after it's confirmed.
 - An error's parameter name is the tool's own argument name.
 - A retryable flag matches idempotency.
