@@ -101,7 +101,7 @@ propose a change (or dropping a part of it), rather than keep running it unexami
 | `{{BRANCH}}` | the branch name |
 | `{{ISSUE_LINE}}` | `Issue: #N (read it with gh issue view N --comments).` If there's no issue, a sentence stating the intent instead |
 | `{{BODY_LINE}}` | First push: `PR body draft: <absolute path>` (write the draft to the session scratchpad first). Fix push: `PR: #N (gh pr view N --comments), including QA's latest round` |
-| `{{SCRATCH}}` | an absolute path in the session scratchpad, for the reviewer's repros and worktrees |
+| `{{SCRATCH}}` | an absolute path in the session scratchpad, for the reviewer's repros and scratch clones |
 | `{{PERSPECTIVE}}` | the rotating perspective used least recently per the Awareness note `review-lens-history-<name>` (e.g. `review-lens-history-mcp-synology`; shared with QA). Dev reads it before dispatching and adds a line after the review. If the note can't be read, pick by relevance, say so in the PR body, and add the line once it can |
 
 `gh` needs a valid token in the reviewer's shell. If the session uses the bot identity, tell the
@@ -118,9 +118,21 @@ Branch {{BRANCH}}, diff: `git -C {{WORKTREE}} diff origin/main...HEAD`. {{ISSUE_
 Your job is to find what QA would find. Try to break the change. Report a finding only if
 you reproduced it: a command and its output, a failing test, or a scratch-repo or
 test-environment probe. Label anything else "suspected", with what would confirm it.
-Don't edit {{WORKTREE}}. Do repros, mutation checks and old-version comparisons under
-{{SCRATCH}}: `git -C {{WORKTREE}} worktree add {{SCRATCH}}/<name> <ref>`, then
-`git -C {{WORKTREE}} worktree remove --force {{SCRATCH}}/<name>` when you're done.
+Don't edit {{WORKTREE}}. Do repros, mutation checks and old-version comparisons in
+throwaway clones under {{SCRATCH}}, never in worktrees (a worktree shares the repository's
+config and objects, so a mistake in it reaches every checkout):
+`git clone -q --local {{WORKTREE}} {{SCRATCH}}/<name>`, then
+`git -C {{SCRATCH}}/<name> checkout -q <sha>` (`git -C {{WORKTREE}} rev-parse <ref>`
+gives the SHA). Run the project's tools with `uv run` inside the clone, which builds the
+clone's own environment; {{WORKTREE}}'s virtualenv imports {{WORKTREE}}'s code, so a
+mutation made in the clone wouldn't run. Delete the clone when you're done.
+Never point GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE or GIT_COMMON_DIR at {{WORKTREE}}, its
+repository or any checkout of it; to test such variables, aim them at a clone under
+{{SCRATCH}}. In a container, run only tools that work on this host; if one crashes, stop
+and list the check under what you couldn't check rather than retry (crash reports appear
+on the maintainer's desktop). Before you finish, confirm
+`git -C {{WORKTREE}} config core.bare` prints false and `git -C {{WORKTREE}} status --short`
+is unchanged.
 Shell commands such as git grep, pytest and piped tails are fine here.
 
 First, from the diff and the code alone (before reading the PR's comments, earlier QA
@@ -159,7 +171,7 @@ End with what you couldn't check, and why.
 Can each factual sentence in the PR body, CHANGELOG, specs and docs point to evidence?
 - Re-read every "as before", "never", "only", "every", "no user-visible change",
   "verified", "can't", "N in M" and percentage. Prove each by running old vs new
-  (a scratch worktree of `origin/main`) or quoting the code line or doc URL.
+  (a scratch clone of `origin/main`) or quoting the code line or doc URL.
 - Produce example outputs by running the real code, never by hand.
 - Recompute rates and totals from the PR's own tables.
 - Check repo-config claims (rulesets, labels, required checks) with `gh api`.
@@ -200,7 +212,7 @@ Each row gets a parametrized test asserting a structured error, or a scratch-rep
 - The entry exists under Unreleased, in the repo's format and categories, with the PR number.
   No `@handles`. Security content is called out.
 - Write "used to" and "previously" against the last released tag, not an intermediate
-  commit: probe a scratch worktree of `v<last>`. Check `git tag --contains` before
+  commit: probe a scratch clone of `v<last>`. Check `git tag --contains` before
   logging a revert.
 - Releases: the tag date, the supported-versions table, any status line.
 - American spelling and idiom ("behavior", not "behaviour"; no "belt-and-braces").
@@ -220,7 +232,7 @@ done, declared in the body as a deviation, or filed as an issue before QA. Close
 
 ### 7. Tests that don't pin the claim (about 13)
 
-- Mutation check: in a scratch worktree of `HEAD`, revert the source hunk (or the single
+- Mutation check: in a scratch clone of `HEAD`, revert the source hunk (or the single
   line); each new test must fail there.
 - Assert the exact value or code the body names (`== 1`, not `<= 1`; `==`, not `endswith`).
 - A CI check fails, rather than skips or warns, when the thing it guards is broken.
@@ -247,7 +259,7 @@ What can each new call raise, and what does the caller see?
 ### 10. CI exercises what ships (about 12)
 
 - A dependency range change: resolve fresh (`uv lock --upgrade-package X` in a scratch
-  worktree) and import it. CI's lockfile isn't what users install.
+  clone) and import it. CI's lockfile isn't what users install.
 - List the affected workflows that don't run on a PR (publish, `pull_request_target`,
   main-only steps such as cache saves).
 - Check the failure modes: a bad cache, a forgotten version bump, a wait longer than the
