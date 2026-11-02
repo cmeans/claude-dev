@@ -46,6 +46,9 @@ author's view of what matters, which is what this review is there to get past. (
 2026-10-28, after mcp-synology #437 failed QA round 2 on a stale claim that checklist item 2
 covers: that round's review was a hand-written prompt, and the fix push had none.)
 
+**Dev's own experiments** (mutation loops, repros, environment probes) follow the template's
+scratch-clone rules too.
+
 **Dev's own sweep.** After fixing any claim, wording, name or default, whoever reported it,
 `git grep` the repo for the old wording (item 2's method) before committing. A finding names one
 place; the same sentence is often in two or three. (`git grep` and reading command output through
@@ -118,21 +121,29 @@ Branch {{BRANCH}}, diff: `git -C {{WORKTREE}} diff origin/main...HEAD`. {{ISSUE_
 Your job is to find what QA would find. Try to break the change. Report a finding only if
 you reproduced it: a command and its output, a failing test, or a scratch-repo or
 test-environment probe. Label anything else "suspected", with what would confirm it.
-Don't edit {{WORKTREE}}. Do repros, mutation checks and old-version comparisons in
+Don't edit {{WORKTREE}}. Before you start, save `git -C {{WORKTREE}} status --short` to
+`{{SCRATCH}}/status-before.txt`. Do repros, mutation checks and old-version comparisons in
 throwaway clones under {{SCRATCH}}, never in worktrees (a worktree shares the repository's
 config and objects, so a mistake in it reaches every checkout):
-`git clone -q --local {{WORKTREE}} {{SCRATCH}}/<name>`, then
-`git -C {{SCRATCH}}/<name> checkout -q <sha>` (`git -C {{WORKTREE}} rev-parse <ref>`
-gives the SHA). Run the project's tools with `uv run` inside the clone, which builds the
-clone's own environment; {{WORKTREE}}'s virtualenv imports {{WORKTREE}}'s code, so a
-mutation made in the clone wouldn't run. Delete the clone when you're done.
+`git clone -q --no-hardlinks {{WORKTREE}} {{SCRATCH}}/<name>` (a full copy; `--local` fails
+when the scratch folder is on another filesystem, and `--shared` keeps reading the real
+repository's objects), then `git -C {{SCRATCH}}/<name> remote remove origin`, so nothing in
+the clone can push or fetch into the real repository, then
+`git -C {{SCRATCH}}/<name> checkout -q <sha>` with the SHA from
+`git -C {{WORKTREE}} rev-parse <ref>` (inside a clone, `origin/...` would name the source's
+local branches, not the remote's). Install the clone's own environment with the command
+the repo's CLAUDE.md gives (for mcp-synology, `uv sync --extra dev`, plus `--extra vdsm`
+for vdsm) and run tools with `uv run` there: {{WORKTREE}}'s virtualenv imports
+{{WORKTREE}}'s code, so a mutation made in the clone wouldn't run under it. Delete the
+clone when you're done.
 Never point GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE or GIT_COMMON_DIR at {{WORKTREE}}, its
 repository or any checkout of it; to test such variables, aim them at a clone under
-{{SCRATCH}}. In a container, run only tools that work on this host; if one crashes, stop
-and list the check under what you couldn't check rather than retry (crash reports appear
-on the maintainer's desktop). Before you finish, confirm
-`git -C {{WORKTREE}} config core.bare` prints false and `git -C {{WORKTREE}} status --short`
-is unchanged.
+{{SCRATCH}}. In a container, use the image's own tools: don't run uv-managed Python or
+other binaries from this host inside an older-distro image (uv's musl Python segfaulted
+that way, and each crash showed a dialog on the maintainer's desktop). If a tool crashes,
+stop and list the check under what you couldn't check rather than retry. Before you
+finish, confirm `git -C {{WORKTREE}} config core.bare` prints false and
+`git -C {{WORKTREE}} status --short` matches `{{SCRATCH}}/status-before.txt`.
 Shell commands such as git grep, pytest and piped tails are fine here.
 
 First, from the diff and the code alone (before reading the PR's comments, earlier QA
@@ -171,7 +182,7 @@ End with what you couldn't check, and why.
 Can each factual sentence in the PR body, CHANGELOG, specs and docs point to evidence?
 - Re-read every "as before", "never", "only", "every", "no user-visible change",
   "verified", "can't", "N in M" and percentage. Prove each by running old vs new
-  (a scratch clone of `origin/main`) or quoting the code line or doc URL.
+  (a scratch clone checked out at `git -C {{WORKTREE}} rev-parse origin/main`) or quoting the code line or doc URL.
 - Produce example outputs by running the real code, never by hand.
 - Recompute rates and totals from the PR's own tables.
 - Check repo-config claims (rulesets, labels, required checks) with `gh api`.
@@ -212,7 +223,7 @@ Each row gets a parametrized test asserting a structured error, or a scratch-rep
 - The entry exists under Unreleased, in the repo's format and categories, with the PR number.
   No `@handles`. Security content is called out.
 - Write "used to" and "previously" against the last released tag, not an intermediate
-  commit: probe a scratch clone of `v<last>`. Check `git tag --contains` before
+  commit: probe a scratch clone checked out at `v<last>`. Check `git tag --contains` before
   logging a revert.
 - Releases: the tag date, the supported-versions table, any status line.
 - American spelling and idiom ("behavior", not "behaviour"; no "belt-and-braces").
