@@ -213,8 +213,10 @@ In those cases — and only those — the agent that opened the PR must:
    or not it's approved. Never during `QA Active`, and on mcp-synology
    only after main's vdsm run saves the new image if a merge changed it.
    Say that it goes back through CI and QA, since a push removes the
-   label. Dev updates its own PRs and Dependabot's; if the next one is
-   anyone else's, tell the maintainer.
+   label. Dev updates its own PRs only. Never push to a Dependabot
+   branch, a merge of `main` included: that stops Dependabot rebasing it.
+   Leave it to Dependabot, and fix what its PR needs in a PR of Dev's
+   from `main`. If the next one is anyone else's, tell the maintainer.
 
 **Any push invalidates approval.** If you push *anything* to a PR
 that has `QA Approved` — code, docs, conflict resolution, anything —
