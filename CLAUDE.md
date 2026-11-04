@@ -34,6 +34,7 @@ On every new conversation, run these checks and report results concisely:
 3. **Check for self-created intentions**: Call `get_intentions(state="fired", limit=10)` -- look for handoff notes from a previous session (`learned_from: "claude-code"`). These capture in-progress work from before a context compaction or conversation clear. Mention what was in progress and ask if the user wants to resume.
 4. **Cross-agent notes**: Call `get_knowledge(tags=["feedback"])` for QA findings or cross-agent notes meant for Dev to find.
 5. **Open PRs**: Run `gh pr list --state open` for the current repo (skip if not a GitHub repo).
+6. **PR label watcher**: If the repo has the label automation and Dev has open PRs, run `bash ~/.cache/claude-dev/monitor/pr-watch.sh <owner>/<repo>` with the Monitor tool, `timeout_ms` 1800000. Report its `watcher up` line. Re-arm it on each expiry while Dev has open PRs. An alert means: re-read the live labels and tell the maintainer. It never starts work or a merge. Details are in the Awareness note `pr-label-watcher`. If the script isn't there (it's local to this machine), say so and continue.
 
 Report all results in a single startup message. Keep it compact.
 
