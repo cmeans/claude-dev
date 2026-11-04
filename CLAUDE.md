@@ -34,7 +34,7 @@ On every new conversation, run these checks and report results concisely:
 3. **Check for self-created intentions**: Call `get_intentions(state="fired", limit=10)` -- look for handoff notes from a previous session (`learned_from: "claude-code"`). These capture in-progress work from before a context compaction or conversation clear. Mention what was in progress and ask if the user wants to resume.
 4. **Cross-agent notes**: Call `get_knowledge(tags=["feedback"])` for QA findings or cross-agent notes meant for Dev to find.
 5. **Open PRs**: Run `gh pr list --state open` for the current repo (skip if not a GitHub repo).
-6. **PR label watcher**: If the repo has the label automation and Dev has open PRs, run `bash ~/.cache/claude-dev/monitor/pr-watch.sh <owner>/<repo>` with the Monitor tool, `timeout_ms` 1800000. Report its `watcher up` line. Re-arm it on each expiry while Dev has open PRs. An alert means: re-read the live labels and tell the maintainer. It never starts work or a merge. Details are in the Awareness note `pr-label-watcher`. If the script isn't there (it's local to this machine), say so and continue.
+6. **PR label watcher** (main session only, never a subagent): If the repo has the label automation and `gh pr list --author app/cmeans-claude-dev` shows an open PR, run `bash ~/.cache/claude-dev/monitor/pr-watch.sh <owner>/<repo>` with the Monitor tool, `timeout_ms` 1800000. Also arm it when you open a PR and it isn't running, and re-arm it on each expiry while Dev has open PRs. Its `watcher up` line arrives later as an event: say "armed" at startup and report the line when it comes. If nothing comes within about a minute, read `~/.cache/claude-dev/monitor/<repo>.log`. `watcher already running` means another session holds it: say so, since that session gets the alerts. A `#N <label>` alert can be about any open PR, not only Dev's. It means: re-read the live labels and tell the maintainer. It never starts work or a merge. A `watcher:` line is about the watcher, not a PR. Details are in the Awareness note `pr-label-watcher`. If the script isn't there (it's local to this machine), say so and continue.
 
 Report all results in a single startup message. Keep it compact.
 
@@ -207,9 +207,9 @@ This includes:
 - After initial PR creation when CI passes and `Ready for QA` is applied
 - After fixing QA findings and re-applying `Ready for QA`
 
-The 1-minute `/loop` cron (defined in global CLAUDE.md) watches for `qa-failed`
-notifications from QA. When one arrives, report it to the user and begin
-addressing the findings.
+QA's verdicts reach Dev through the PR label watcher (startup step 6) or the
+maintainer. Report one when it arrives; the watcher's alert doesn't start the
+fix.
 
 ### PR body conventions
 
