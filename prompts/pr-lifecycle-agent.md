@@ -87,22 +87,24 @@ gh pr view {{PR_NUMBER}} --json state --jq .state
 
 When state is "MERGED":
 1. Notify: `notify-send -u normal "PR #{{PR_NUMBER}} Merged" "Updating #{{NEXT_PR}} next"`
-2. Merge `main` into the next PR (assumes a local clone with the branch
+2. If the next PR has `QA Active`: notify dev and stop. A push would reset QA's round.
+3. Merge `main` into the next PR (assumes a local clone with the branch
    available; never a rebase or force push):
    ```
    git fetch origin main {{NEXT_BRANCH}}
    git checkout {{NEXT_BRANCH}}
    git merge --no-edit origin/main
    ```
-3. If the merge has conflicts: `git merge --abort`, notify dev and stop.
-4. If the merge is clean:
+4. If the merge has conflicts: `git merge --abort`, notify dev and stop.
+5. If the merge brought in a change to the vdsm golden image (mcp-synology's bake files):
+   notify dev and stop. main's run has to save the new cache before this push.
+6. Otherwise, in one Bash call, so the push runs as the bot:
    ```
-   git push origin {{NEXT_BRANCH}}
+   source ~/github.com/cmeans/claude-dev/github-app/activate.sh && git push origin {{NEXT_BRANCH}}
    ```
-5. The push will trigger on-push which adds Awaiting CI.
-6. Remove Dev Active if present: `gh pr edit {{NEXT_PR}} --remove-label "Dev Active"`
-7. Notify: `notify-send -u normal "PR #{{NEXT_PR}} Updated and Pushed" "CI running"`
-8. Report and stop. A new lifecycle agent will be dispatched for #{{NEXT_PR}}.
+7. The push will trigger on-push which adds Awaiting CI. Leave `Dev Active` alone: it's Dev's hold.
+8. Notify: `notify-send -u normal "PR #{{NEXT_PR}} Updated and Pushed" "CI running"`
+9. Report and stop. A new lifecycle agent will be dispatched for #{{NEXT_PR}}.
 
 ## Important
 

@@ -193,9 +193,9 @@ it's the safety net.
 
 ### Behind main and merge conflicts
 
-`main`'s ruleset requires up-to-date branches (mcp-synology: the
-maintainer kept that rule on 2026-10-18), so every merge leaves the
-other open PRs behind.
+Where `main`'s ruleset requires up-to-date branches (mcp-synology, where
+the maintainer kept that rule on 2026-10-18, and mcp-awareness), every
+merge leaves the other open PRs behind.
 
 - **`Behind main` blocks the merge, not the review.** A clean merge of
   `main` doesn't change what a PR does. Dev updates the branch **just
@@ -217,7 +217,7 @@ other open PRs behind.
   branch and then a separate update cost two full runs and can invalidate
   a QA round in progress. Push several quick fix commits together, too.
   (mcp-synology #284 cancels superseded PR runs, but one push is still
-  cheaper than a cancelled one.)
+  cheaper than a canceled one.)
   - Keep the `main` merge and the fix as **separate commits** in that one
     push, so QA can tell "main merged in" from "Dev changed the PR".
   - Don't push while `QA Active` is on unless QA asked for the fix: a
@@ -226,8 +226,8 @@ other open PRs behind.
 ### Merge order labels
 
 `merge-order: N` labels say which PRs merge first, to cut the update
-and re-review churn above (mcp-synology has 0–6; other repos may have
-fewer). **Dev applies them as a proposal, with a PR comment; the
+and re-review churn above (mcp-synology has 0–6; other repos have their
+own range). **Dev applies them as a proposal, with a PR comment; the
 maintainer can override; QA only reads them** (QA reviews `Ready for
 QA` PRs in that order: lowest number first, then unlabeled). **The same number means no order
 between them:** PRs that share a number can merge in either order.
@@ -264,7 +264,9 @@ PR body:
    merge changed the vdsm golden image, wait until main's run has saved
    the new cache first.
 4. Leave the other PRs alone until they're next: updating them all
-   after every merge is chasing `main`.
+   after every merge is chasing `main`. The exception is a PR of Dev's
+   with a merge conflict, which Dev updates right away (maintainer,
+   2026-10-30).
 
 **Always comment when changing labels manually.** Post a PR comment
 explaining why (e.g., "Removing `QA Approved` — formatting fix
