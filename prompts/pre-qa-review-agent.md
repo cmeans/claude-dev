@@ -150,8 +150,7 @@ that stores or resolves credentials) in one literal command, the check and the p
 with the variables written out, never in a `$VAR`: zsh doesn't word-split `env $VARS`, so the
 first variable takes the rest as its value, and an unexported one sets nothing, both with no
 error. Each Bash call is a new shell, so a check in an earlier call proves nothing:
-`bash -c 'set -eu; unset DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR; cd <clone>; export HOME=<scratch>/home
-PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring; uv run python -c "import keyring, keyring.backends.null as n; assert isinstance(keyring.get_keyring(), n.Keyring)"; <probe>'`
+`bash -c 'set -eu; unset DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR; cd <clone>; export HOME=<scratch>/home PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring; uv run python -c "import keyring, keyring.backends.null as n; assert isinstance(keyring.get_keyring(), n.Keyring)"; <probe>'`
 The null backend stores nothing; a probe that reads back what it stored needs its own small
 `keyring.backend.KeyringBackend` subclass on PYTHONPATH, named in that variable and in the
 check. A repo's own test suite that swaps the backend itself needs none of this. If a probe
