@@ -163,8 +163,8 @@ In those cases — and only those — the agent that opened the PR must:
    QA's past findings and reports only what it reproduced. Fix what it
    confirms, then push once. Note the result in the PR body
    (`Pre-QA review: N findings (M fixed, K declined: see below; D of the N from Diff
-   mode)` or `Pre-QA review: clean`). Skip it only for a clean merge of `main`, or a
-   clean rebase onto it, with no other changes. A merge that needed conflict resolution gets the review,
+   mode)` or `Pre-QA review: clean`). Skip it only for a clean merge of `main` with no other
+   changes. A merge that needed conflict resolution gets the review,
    and the PR body names the resolved files and how they were resolved.
    - **Diff-mode pass** (maintainer, 2026-10-30; adapted from QA's step 4 in Claude-QA
      `CLAUDE.md`, which runs after its own checks, gives test-only changes lens H and
