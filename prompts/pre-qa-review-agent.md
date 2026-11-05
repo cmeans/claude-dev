@@ -45,6 +45,11 @@ author's view of what matters, which is what this review is there to get past. (
 2026-10-28, after mcp-synology #437 failed QA round 2 on a stale claim that checklist item 2
 covers: that round's review was a hand-written prompt, and the fix push had none.)
 
+**Dev's own experiments** (mutation loops, repros, environment probes) follow the template's
+scratch-clone and keyring rules too. (The first pre-QA review of mcp-synology #565, 2026-11-05:
+`env $ENVV` under zsh never set the keyring backend, and `setup` wrote fake credentials to the
+maintainer's real keyring. Dev's note on that prompt said not to; the template said nothing.)
+
 **Dev's own sweep.** After fixing any claim, wording, name or default, whoever reported it,
 `git grep` the repo for the old wording (item 2's method) before committing. A finding names one
 place; the same sentence is often in two or three. (`git grep` and reading command output through
@@ -100,7 +105,7 @@ propose a change (or dropping a part of it), rather than keep running it unexami
 | `{{BRANCH}}` | the branch name |
 | `{{ISSUE_LINE}}` | `Issue: #N (read it with gh issue view N --comments).` If there's no issue, a sentence stating the intent instead |
 | `{{BODY_LINE}}` | First push: `PR body draft: <absolute path>` (write the draft to the session scratchpad first). Fix push: `PR: #N (gh pr view N --comments), including QA's latest round` |
-| `{{SCRATCH}}` | an absolute path in the session scratchpad, for the reviewer's repros and worktrees |
+| `{{SCRATCH}}` | an absolute path in the session scratchpad, for the reviewer's repros and scratch clones |
 | `{{PERSPECTIVE}}` | the rotating perspective used least recently per the Awareness note `review-lens-history-<name>` (e.g. `review-lens-history-mcp-synology`; shared with QA; if its description names a newer note, use that one). Dev reads it before dispatching and adds a line after the review. If the note can't be read, pick by relevance, say so in the PR body, and add the line once it can |
 
 `gh` needs a valid token in the reviewer's shell. If the session uses the bot identity, tell the
@@ -117,9 +122,39 @@ Branch {{BRANCH}}, diff: `git -C {{WORKTREE}} diff origin/main...HEAD`. {{ISSUE_
 Your job is to find what QA would find. Try to break the change. Report a finding only if
 you reproduced it: a command and its output, a failing test, or a scratch-repo or
 test-environment probe. Label anything else "suspected", with what would confirm it.
-Don't edit {{WORKTREE}}. Do repros, mutation checks and old-version comparisons under
-{{SCRATCH}}: `git -C {{WORKTREE}} worktree add {{SCRATCH}}/<name> <ref>`, then
-`git -C {{WORKTREE}} worktree remove --force {{SCRATCH}}/<name>` when you're done.
+Don't edit {{WORKTREE}}. Before you start, save `git -C {{WORKTREE}} status --short` to
+`{{SCRATCH}}/status-before.txt`. Do repros, mutation checks and old-version comparisons in
+throwaway clones under {{SCRATCH}}, never in worktrees (a worktree shares the repository's
+config and objects, so a mistake in it reaches every checkout):
+`git clone -q --no-hardlinks {{WORKTREE}} {{SCRATCH}}/<name>` (a full copy; `--local` fails
+when the scratch folder is on another filesystem, and `--shared` keeps reading the real
+repository's objects), then `git -C {{SCRATCH}}/<name> remote remove origin`, so nothing in
+the clone can push or fetch into the real repository, then
+`git -C {{SCRATCH}}/<name> checkout -q <sha>` with the SHA from
+`git -C {{WORKTREE}} rev-parse <ref>` (inside a clone, `origin/...` would name the source's
+local branches, not the remote's). Install the clone's own environment with the command
+the repo's CLAUDE.md gives (for mcp-synology, `uv sync --extra dev`, plus `--extra vdsm`
+for vdsm) and run tools with `uv run` there: {{WORKTREE}}'s virtualenv imports
+{{WORKTREE}}'s code, so a mutation made in the clone wouldn't run under it. Delete the
+clone when you're done.
+Never point GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE or GIT_COMMON_DIR at {{WORKTREE}}, its
+repository or any checkout of it; to test such variables, aim them at a clone under
+{{SCRATCH}}. In a container, use the image's own tools: don't run uv-managed Python or
+other binaries from this host inside an older-distro image (uv's musl Python segfaulted
+that way, and each crash showed a dialog on the maintainer's desktop). If a tool crashes,
+stop and list the check under what you couldn't check rather than retry. Before you
+finish, confirm `git -C {{WORKTREE}} config core.bare` prints false and
+`git -C {{WORKTREE}} status --short` matches `{{SCRATCH}}/status-before.txt`.
+Never read, write or delete the real OS keyring. Run a probe that could reach it (anything
+that stores or resolves credentials) in one literal command, the check and the probe together,
+with the variables written out, never in a `$VAR`: zsh doesn't word-split `env $VARS`, so the
+first variable takes the rest as its value, and an unexported one sets nothing, both with no
+error. Each Bash call is a new shell, so a check in an earlier call proves nothing:
+`bash -c 'set -eu; unset DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR; cd <clone>; export HOME=<scratch>/home PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring; uv run python -c "import keyring, keyring.backends.null as n; assert isinstance(keyring.get_keyring(), n.Keyring)"; <probe>'`
+The null backend stores nothing; a probe that reads back what it stored needs its own small
+`keyring.backend.KeyringBackend` subclass on PYTHONPATH, named in that variable and in the
+check. A repo's own test suite that swaps the backend itself needs none of this. If a probe
+breaks this, stop and report exactly what it wrote.
 Shell commands such as git grep, pytest and piped tails are fine here.
 
 First, from the diff and the code alone (before reading the PR's comments, earlier QA
@@ -158,7 +193,7 @@ End with what you couldn't check, and why.
 Can each factual sentence in the PR body, CHANGELOG, specs and docs point to evidence?
 - Re-read every "as before", "never", "only", "every", "no user-visible change",
   "verified", "can't", "N in M" and percentage. Prove each by running old vs new
-  (a scratch worktree of `origin/main`) or quoting the code line or doc URL.
+  (a scratch clone checked out at `git -C {{WORKTREE}} rev-parse origin/main`) or quoting the code line or doc URL.
 - Produce example outputs by running the real code, never by hand.
 - Recompute rates and totals from the PR's own tables.
 - Check repo-config claims (rulesets, labels, required checks) with `gh api`.
@@ -199,7 +234,7 @@ Each row gets a parametrized test asserting a structured error, or a scratch-rep
 - The entry exists under Unreleased, in the repo's format and categories, with the PR number.
   No `@handles`. Security content is called out.
 - Write "used to" and "previously" against the last released tag, not an intermediate
-  commit: probe a scratch worktree of `v<last>`. Check `git tag --contains` before
+  commit: probe a scratch clone checked out at `v<last>`. Check `git tag --contains` before
   logging a revert.
 - Releases: the tag date, the supported-versions table, any status line.
 - American spelling and idiom ("behavior", not "behaviour"; no "belt-and-braces").
@@ -219,7 +254,7 @@ done, declared in the body as a deviation, or filed as an issue before QA. Close
 
 ### 7. Tests that don't pin the claim (about 13)
 
-- Mutation check: in a scratch worktree of `HEAD`, revert the source hunk (or the single
+- Mutation check: in a scratch clone of `HEAD`, revert the source hunk (or the single
   line); each new test must fail there.
 - Assert the exact value or code the body names (`== 1`, not `<= 1`; `==`, not `endswith`).
 - A CI check fails, rather than skips or warns, when the thing it guards is broken.
@@ -246,7 +281,7 @@ What can each new call raise, and what does the caller see?
 ### 10. CI exercises what ships (about 12)
 
 - A dependency range change: resolve fresh (`uv lock --upgrade-package X` in a scratch
-  worktree) and import it. CI's lockfile isn't what users install.
+  clone) and import it. CI's lockfile isn't what users install.
 - List the affected workflows that don't run on a PR (publish, `pull_request_target`,
   main-only steps such as cache saves).
 - Check the failure modes: a bad cache, a forgotten version bump, a wait longer than the
