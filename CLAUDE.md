@@ -96,12 +96,15 @@ Who applies what — honor this boundary:
 | ---------------------- | -------------------------- | --- | ------------------ | ---------------------------------- |
 | `Dev Active`           | ✅ add/remove               |     |                    |                                    |
 | `Awaiting CI`          |                            |     |                    | ✅ `pr-labels.yml` on push          |
-| `Ready for QA`         | ✅ re-apply after fix       |     |                    | ✅ `pr-labels-ci.yml` on CI pass    |
+| `Ready for QA`         | ✅ body-only fix; no-automation repos after CI, or after the push with no CI |     |                    | ✅ `pr-labels-ci.yml` on CI pass    |
 | `QA Active`            |                            | ✅   |                    |                                    |
 | `Ready for QA Signoff` |                            | ✅   |                    |                                    |
 | `QA Failed`            |                            | ✅   |                    |                                    |
 | **`QA Approved`**      | ❌ **never**                | ❌ **never** | ✅ **only Chris**   |                                    |
 | `CI Failed`            |                            |     |                    | ✅ `pr-labels-ci.yml` on CI fail    |
+| `Behind main`          | ❌ never by hand            | ❌ never by hand |              | ✅ `pr-behind-main.yml`             |
+| `Merge conflict`       | ❌ never by hand            | ❌ never by hand |              | ✅ `pr-behind-main.yml`             |
+| `merge-order: N`       | ✅ apply as a proposal      | read only | ✅ sets / overrides |                                    |
 
 **`QA Approved` is maintainer-only.** No agent — Dev, QA, or otherwise
 — may apply this label under any circumstance. Not for routine merges.
@@ -116,7 +119,7 @@ even "just to test" — is out of role.
 
 ### The automation (mcp-clipboard, mcp-synology, mcp-awareness)
 
-Three workflows handle most label transitions automatically:
+These workflows handle most label transitions automatically:
 
 - **`pr-labels.yml`** — on every push to a PR, removes stale workflow
   labels and adds `Awaiting CI`. On `Dev Active` removal, promotes
@@ -128,6 +131,17 @@ Three workflows handle most label transitions automatically:
 - **`qa-gate.yml`** — posts a `QA Gate` commit status that becomes
   `success` only when `QA Approved` is present. Merges blocked by
   branch protection until then.
+- **`pr-behind-main.yml`** (mcp-synology, #274) — on every push to `main`
+  and every push to a PR: `Behind main` when the branch is missing
+  commits from `main`, `Merge conflict` when GitHub says it can't merge
+  cleanly; removes each when it no longer applies. With mcp-synology
+  #276 it also removes `Ready for QA` when it adds `Merge conflict`, and
+  the CI promotion skips a PR that has it.
+- **`pr-labels-recheck.yml`** (mcp-synology, #567) — every 15 minutes:
+  settles a PR on `Awaiting CI` or `CI Failed`, and gives a same-repository
+  PR with no workflow label one from its checks, so removing a PR's last
+  workflow label by hand doesn't hold it; `Dev Active` does. It comments
+  once when a result is still missing 30 minutes after its runs finished.
 
 In the normal case Dev does nothing for label transitions after pushing
 — the automation handles it. Dev's job is to apply `Dev Active` while
@@ -165,6 +179,44 @@ In those cases — and only those — the agent that opened the PR must:
 
 ### The standard handoff sequence
 
+0. **Before every push** (all but a clean merge of `main`, below), run the
+   pre-QA review agent: `prompts/pre-qa-review-agent.md`. It's a fresh
+   agent that reviews the committed diff against a checklist built from
+   QA's past findings and reports only what it reproduced. Fix what it
+   confirms, then push once. Note the result in the PR body
+   (`Pre-QA review: N findings (M fixed, K declined: see below; D of the N from Diff
+   mode)` or `Pre-QA review: clean`). Skip it only for a clean merge of `main` with no other
+   changes. A merge that needed conflict resolution gets the review,
+   and the PR body names the resolved files and how they were resolved.
+   - **Diff-mode pass** (maintainer, 2026-10-30; adapted from QA's step 4 in Claude-QA
+     `CLAUDE.md`, which runs after its own checks, gives test-only changes lens H and
+     always closes with `lenses A-E`): the same review runs the `critical-code-review`
+     skill (`anthropic-skills:critical-code-review`) in Diff mode on the branch, as the
+     template says. Its findings count like the checklist's.
+     - **Scope:** lenses add up by what the diff touches: A–E for source (workflows and
+       scripts included), F for tests, H for docs; one rotating perspective in every
+       case; all the skill's rules.
+     - **Rotation:** before dispatching, read the Awareness note
+       `review-lens-history-<name>` (`<name>`: repo name without the owner, e.g.
+       `review-lens-history-mcp-synology`; shared with QA; if missing, create it with tags
+       `["<name>", "review", "qa"]`; if its description names a newer note, use that one)
+       and pass the least recently used perspective as
+       `{{PERSPECTIVE}}`. After the review, re-read the note and add one line: date, mode,
+       who (Dev pre-QA), PR, head, perspective, findings. Add lines; don't rewrite others'.
+       If the note can't be read, pick by relevance, say so in the PR body, and add the
+       line later.
+     - **Variants:** for every finding from either pass, the whole repo is searched for
+       the same pattern. An instance out of the PR's scope gets an issue before QA
+       (checklist section 6).
+     - **No anchoring:** the reviewer runs Diff mode from the diff and code alone, before
+       reading the PR's comments or earlier QA rounds, then the checklist, and marks each
+       finding New, Known-open or Regressed.
+     - **Reporting:** findings are tagged by lens or perspective and marked Reproduced or
+       Read; the review ends with `Diff-mode: lenses <…>, perspective <X>, variants
+       checked: <n>`. The PR body's pre-QA line counts how many of the findings came from
+       Diff mode.
+     - **Tracking:** in `pre-qa-tracking-<name>`, record per round how many pre-QA
+       findings came from Diff mode, and which later QA findings it would have covered.
 1. Dev finishes work → push triggers `Awaiting CI` automatically.
    While CI runs, `Dev Active` may coexist; remove `Dev Active` when
    ready.
@@ -172,9 +224,18 @@ In those cases — and only those — the agent that opened the PR must:
 3. QA reviews → applies `Ready for QA Signoff` (pass, zero findings +
    codecov green) or `QA Failed` (any issue, however minor), removing
    `Ready for QA`.
-4. Dev fixes findings → re-applies `Ready for QA`, removing
-   `QA Failed`. Pushing also resets to `Awaiting CI` (the automation
-   handles cleanup).
+4. Dev fixes findings: adds `Dev Active` (which clears `QA Failed`),
+   fixes, pushes once, updates the PR body, then removes `Dev Active`.
+   In a repo with the label automation, it promotes to `Ready for QA`
+   once CI passes. Never hand-apply `Ready for QA` before CI passes: that
+   skips the CI gate. The exceptions: a fix to the PR body alone, with no
+   push, swaps `QA Failed` → `Ready for QA` by hand; the manual monitor
+   and the lifecycle agent's fallback (above, and
+   `prompts/pr-lifecycle-agent.md`) apply it once CI is green; and in a
+   repo without the automation, Dev applies it by hand once CI passes,
+   or right after the push when the repo has no CI. claude-dev itself
+   has no CI and no workflow labels, so the hand-off there is a PR
+   comment.
 5. **Maintainer (Chris) signs off → applies `QA Approved`** (merge
    gate), removing `Ready for QA Signoff`. `qa-gate.yml` flips the
    commit status to `success`; merge unblocks. **No agent applies this
@@ -236,37 +297,95 @@ that has `QA Approved` — code, docs, conflict resolution, anything —
 the automation removes it and re-runs the cycle. Don't fight this;
 it's the safety net.
 
+### Behind main and merge conflicts
+
+Where `main`'s ruleset requires up-to-date branches (mcp-synology, where
+the maintainer kept that rule on 2026-10-18, and mcp-awareness), every
+merge leaves the other open PRs behind.
+
+- **`Behind main` blocks the merge, not the review.** A clean merge of
+  `main` doesn't change what a PR does. Dev updates the branch **just
+  before merging**: merge `origin/main` into it (a merge commit, never a
+  force push), and let CI rerun. The push removes `Ready for QA Signoff`
+  and `QA Approved`: QA re-applies `Ready for QA Signoff` after checking
+  that the PR's own diff is unchanged, and the maintainer re-applies
+  `QA Approved`.
+- **`Merge conflict` holds back review.** Dev resolves it the same way:
+  merge `origin/main` into the branch, resolve, and push (never a rebase
+  or force push), naming the hand-resolved files in the PR body.
+  Resolving it changes the diff, so the PR loses `Ready for QA` until
+  the push's CI passes again.
+- Neither label is added or removed by hand.
+- **One push per round, not two.** When a PR is behind `main` and you're
+  pushing a QA fix, merge `main` in first and push once. Every push runs
+  the full CI, vdsm included, and the up-to-date
+  rule forces an update before merge anyway, so a fix pushed to a behind
+  branch and then a separate update cost two full runs and can invalidate
+  a QA round in progress. Push several quick fix commits together, too.
+  (mcp-synology #284 cancels superseded PR runs, but one push is still
+  cheaper than a canceled one.)
+  - Keep the `main` merge and the fix as **separate commits** in that one
+    push, so QA can tell "main merged in" from "Dev changed the PR".
+  - Don't push while `QA Active` is on unless QA asked for the fix: a
+    push resets the round.
+
+### Merge order labels
+
+`merge-order: N` labels say which PRs merge first, to cut the update
+and re-review churn above (mcp-synology has 0–6; other repos have their
+own range). **Dev applies them as a proposal, with a PR comment; the
+maintainer can override; QA only reads them** (QA reviews `Ready for
+QA` PRs in that order: lowest number first, then unlabeled). **The same number means no order
+between them:** PRs that share a number can merge in either order.
+
+When Dev proposes one, it says why in a `## Merge order` section of the
+PR body:
+
+- **`merge-order: 0`:** CI or test infrastructure that other PRs benefit
+  from (for example mcp-synology #275, faster vdsm caching).
+- **`merge-order: 1`:** PRs in the batch that don't depend on another
+  open PR.
+- **`merge-order: 2`–`6`:** only for a real dependency (a multi-part
+  feature, or a fix and the test that needs it: the PR merges after
+  every lower-numbered PR it needs) or a deliberate sequencing choice.
+  A conflict alone isn't a dependency: whichever PR merges second
+  resolves it.
+- **No label:** when no batch is being ordered.
+- Renumber or remove them when the batch changes: a PR merges, or
+  another one joins.
+
+**After every merge (standard practice, maintainer 2026-10-18):**
+
+1. Find the next PR: the lowest `merge-order` label (among PRs sharing
+   it, the oldest); with none left, the oldest open PR (lowest number).
+2. Fix the labels if the batch changed: renumber, and drop a label
+   whose reason no longer holds. If Dev would update PRs in another
+   order than the labels give (a ready PR on the critical path, or one
+   whose files overlap another's), relabel so the labels show that
+   order, comment on each changed PR, then follow the labels.
+3. Update **only that PR** by merging `origin/main` into it (one push,
+   no force), so QA can start on it while CI runs. Do it right away,
+   even at `Ready for QA`, `Ready for QA Signoff` or approved
+   (maintainer, 2026-10-19). Not while it has `QA Active`; and if the
+   merge changed the vdsm golden image, wait until main's run has saved
+   the new cache first.
+4. Leave the other PRs alone until they're next: updating them all
+   after every merge is chasing `main`. The exception is a PR of Dev's
+   with a merge conflict, which Dev updates right away (maintainer,
+   2026-10-30).
+
 **Always comment when changing labels manually.** Post a PR comment
 explaining why (e.g., "Removing `QA Approved` — formatting fix
 pushed after approval"). Audit trail.
 
-### PR notifications via Awareness
+### PR notifications
 
-When a PR reaches `Ready for QA` (either via automation or manual label), write
-a `pr-notify` entry to alert QA:
-
-```python
-add_context(
-    source="claude-dev",
-    tags=["pr-notify", "{repo}"],
-    description=(
-        f"PR #{pr_number}: ready-for-qa — {pr_title} "
-        f"| branch: {branch} "
-        f"| summary: {summary}"
-    ),
-    expires_days=1
-)
-```
-
-Example description:
-`"PR #68: ready-for-qa — fix: escape HTML cells | branch: fix/xss | summary: Escapes HTML in cell values to prevent XSS"`
-
-This includes:
-- After initial PR creation when CI passes and `Ready for QA` is applied
-- After fixing QA findings and re-applying `Ready for QA`
-
-`QA Failed` reaches Dev through the PR label watcher or the maintainer; handle it
-as startup step 6 says. The watcher doesn't report a pass (`Ready for QA Signoff`).
+Don't write `pr-notify` Awareness entries. The `/loop 1m` consumer was
+deleted on 2026-04-24 as too costly (see the global CLAUDE.md). `QA Failed`
+reaches Dev through the PR label watcher or the maintainer: read QA's latest
+round on the PR and start the next round, as startup step 6 says. `QA Approved`
+means the PR can merge by handoff step 6, not that another round starts. The
+watcher doesn't report a pass (`Ready for QA Signoff`).
 
 ### PR body conventions
 
@@ -284,6 +403,8 @@ Every PR body must include:
        links to https://github.com/sponsors/cmeans
   2. - [ ] Run `gh pr checks {pr}` — all green
   ```
+- **`## Merge order`** when the PR has a `merge-order` label: why it
+  has that number.
 - **`Closes #N`** for any tracked issue.
 
 ## Bot identity (`cmeans-claude-dev[bot]`)
