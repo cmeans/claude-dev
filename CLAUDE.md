@@ -111,7 +111,7 @@ even "just to test" — is out of role.
 
 ### The automation (mcp-clipboard, mcp-synology, mcp-awareness)
 
-Three workflows handle most label transitions automatically:
+These workflows handle most label transitions automatically:
 
 - **`pr-labels.yml`** — on every push to a PR, removes stale workflow
   labels and adds `Awaiting CI`. On `Dev Active` removal, promotes
@@ -129,6 +129,11 @@ Three workflows handle most label transitions automatically:
   cleanly; removes each when it no longer applies. With mcp-synology
   #276 it also removes `Ready for QA` when it adds `Merge conflict`, and
   the CI promotion skips a PR that has it.
+- **`pr-labels-recheck.yml`** (mcp-synology, #567) — every 15 minutes:
+  settles a PR on `Awaiting CI` or `CI Failed`, and gives a same-repository
+  PR with no workflow label one from its checks, so removing a PR's last
+  workflow label by hand doesn't hold it; `Dev Active` does. It comments
+  once when a result is still missing 30 minutes after its runs finished.
 
 In the normal case Dev does nothing for label transitions after pushing
 — the automation handles it. Dev's job is to apply `Dev Active` while
