@@ -1,7 +1,7 @@
 # Pre-QA Review Agent
 
-Dispatch this agent **before every push to a PR branch**: every push but a clean merge of main,
-or a clean rebase onto it, with no other changes (see Usage). It reviews the change the way QA
+Dispatch this agent **before every push to a PR branch**: every push but a clean merge of main
+with no other changes (see Usage). It reviews the change the way QA
 does, so findings get fixed before QA's round trip: a QA round, then a full CI rerun for each
 fix push (on mcp-synology, about 12–16 minutes with vdsm on a cache hit).
 
@@ -34,14 +34,13 @@ Use a fresh agent (not a fork) so it doesn't share the author's reasoning. Fix w
 confirms, then push once. Fixes for this review's own findings need a second run only if they
 were non-trivial, and only after Dev's sweep (below). Record the result in the
 PR body: `Pre-QA review: N findings (M fixed, K declined: see below; D of the N from Diff mode)`,
-or `Pre-QA review: clean`. A finding both passes reported counts once, as Diff mode's. Don't cite a SHA there, since a later rebase changes it.
+or `Pre-QA review: clean`. A finding both passes reported counts once, as Diff mode's.
 
 The reviewer reports and doesn't fix. Dev decides what to change, and anything Dev decides not
 to fix goes into the PR body with a reason.
 
 **Every push gets the review, using this template as written.** That includes one-line and
-docs-only fix pushes. Only a clean merge of main, or a clean rebase onto it, with no other
-changes is exempt. A prompt Dev writes for the occasion isn't a substitute: it carries the
+docs-only fix pushes. Only a clean merge of main with no other changes is exempt. A prompt Dev writes for the occasion isn't a substitute: it carries the
 author's view of what matters, which is what this review is there to get past. (The maintainer,
 2026-10-28, after mcp-synology #437 failed QA round 2 on a stale claim that checklist item 2
 covers: that round's review was a hand-written prompt, and the fix push had none.)
