@@ -47,7 +47,9 @@ author's view of what matters, which is what this review is there to get past. (
 covers: that round's review was a hand-written prompt, and the fix push had none.)
 
 **Dev's own experiments** (mutation loops, repros, environment probes) follow the template's
-scratch-clone rules too.
+scratch-clone and keyring rules too. (mcp-synology #558's first review, 2026-11-05: `env $ENVV`
+under zsh never set the keyring backend, and `setup` wrote fake credentials to the maintainer's
+real keyring. The prompt said not to; nothing enforced it.)
 
 **Dev's own sweep.** After fixing any claim, wording, name or default, whoever reported it,
 `git grep` the repo for the old wording (item 2's method) before committing. A finding names one
@@ -144,6 +146,12 @@ that way, and each crash showed a dialog on the maintainer's desktop). If a tool
 stop and list the check under what you couldn't check rather than retry. Before you
 finish, confirm `git -C {{WORKTREE}} config core.bare` prints false and
 `git -C {{WORKTREE}} status --short` matches `{{SCRATCH}}/status-before.txt`.
+Never read, write or delete the real OS keyring. Before a probe that could reach it (anything
+that stores or resolves credentials), run under `bash -c`, not zsh, which doesn't word-split
+`env $VARS`: the first variable takes the rest as its value, with no error. Set an isolated HOME, unset
+DBUS_SESSION_BUS_ADDRESS, set an in-memory or file backend explicitly, and abort unless
+`keyring.get_keyring()` reports that backend. If a probe breaks this, stop and report exactly
+what it wrote.
 Shell commands such as git grep, pytest and piped tails are fine here.
 
 First, from the diff and the code alone (before reading the PR's comments, earlier QA
