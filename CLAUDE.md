@@ -88,7 +88,7 @@ Who applies what — honor this boundary:
 | ---------------------- | -------------------------- | --- | ------------------ | ---------------------------------- |
 | `Dev Active`           | ✅ add/remove               |     |                    |                                    |
 | `Awaiting CI`          |                            |     |                    | ✅ `pr-labels.yml` on push          |
-| `Ready for QA`         | ✅ body-only fix; no-automation repos after CI |     |                    | ✅ `pr-labels-ci.yml` on CI pass    |
+| `Ready for QA`         | ✅ body-only fix; no-automation repos after CI, or after the push with no CI |     |                    | ✅ `pr-labels-ci.yml` on CI pass    |
 | `QA Active`            |                            | ✅   |                    |                                    |
 | `Ready for QA Signoff` |                            | ✅   |                    |                                    |
 | `QA Failed`            |                            | ✅   |                    |                                    |
@@ -177,7 +177,8 @@ In those cases — and only those — the agent that opened the PR must:
      - **Rotation:** before dispatching, read the Awareness note
        `review-lens-history-<name>` (`<name>`: repo name without the owner, e.g.
        `review-lens-history-mcp-synology`; shared with QA; if missing, create it with tags
-       `["<name>", "review", "qa"]`) and pass the least recently used perspective as
+       `["<name>", "review", "qa"]`; if its description names a newer note, use that one)
+       and pass the least recently used perspective as
        `{{PERSPECTIVE}}`. After the review, re-read the note and add one line: date, mode,
        who (Dev pre-QA), PR, head, perspective, findings. Add lines; don't rewrite others'.
        If the note can't be read, pick by relevance, say so in the PR body, and add the
@@ -209,8 +210,10 @@ In those cases — and only those — the agent that opened the PR must:
    push, swaps `QA Failed` → `Ready for QA` by hand; the manual monitor
    and the lifecycle agent's fallback (above, and
    `prompts/pr-lifecycle-agent.md`) apply it once CI is green; and in a
-   repo without the automation (claude-dev itself), Dev applies it by
-   hand once CI passes, or right after the push when the repo has no CI.
+   repo without the automation, Dev applies it by hand once CI passes,
+   or right after the push when the repo has no CI. claude-dev itself
+   has no CI and no workflow labels, so the hand-off there is a PR
+   comment.
 5. **Maintainer (Chris) signs off → applies `QA Approved`** (merge
    gate), removing `Ready for QA Signoff`. `qa-gate.yml` flips the
    commit status to `success`; merge unblocks. **No agent applies this
@@ -229,9 +232,10 @@ pushed after approval"). Audit trail.
 
 Don't write `pr-notify` Awareness entries. The `/loop 1m` consumer was
 deleted on 2026-04-24 as too costly (see the global CLAUDE.md), so the
-maintainer passes on QA's verdict and his own approval by hand
-(`PR #N QA Failed`, `PR #N QA Approved`).
-When one arrives, read QA's latest round on the PR and start the next round.
+maintainer passes on QA's verdict and their own approval by hand. On
+`PR #N QA Failed`, read QA's latest round on the PR and start the next
+round. `PR #N QA Approved` means the PR can merge, not that another
+round starts.
 
 ### PR body conventions
 
