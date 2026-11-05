@@ -13,8 +13,8 @@ per-section counts are approximate: categories were merged, and a few findings f
 
 ## Usage
 
-The full loop for a round: add `Dev Active` to the PR (`gh pr edit N --add-label "Dev Active"`)
-before touching it, fix, commit locally without pushing, run this review, fix what it confirms,
+The full loop for a round: add `Dev Active` to the PR (`gh pr edit N --add-label "Dev Active"`,
+where the repo has that label; claude-dev doesn't) before touching it, fix, commit locally without pushing, run this review, fix what it confirms,
 push once, update the PR body, then remove `Dev Active`. The label tells QA not to start, and
 in repos with the label automation (mcp-clipboard, mcp-synology, mcp-awareness) promotion to
 `Ready for QA` waits for its removal. On the first push there's no PR yet,
@@ -104,7 +104,7 @@ propose a change (or dropping a part of it), rather than keep running it unexami
 | `{{ISSUE_LINE}}` | `Issue: #N (read it with gh issue view N --comments).` If there's no issue, a sentence stating the intent instead |
 | `{{BODY_LINE}}` | First push: `PR body draft: <absolute path>` (write the draft to the session scratchpad first). Fix push: `PR: #N (gh pr view N --comments), including QA's latest round` |
 | `{{SCRATCH}}` | an absolute path in the session scratchpad, for the reviewer's repros and scratch clones |
-| `{{PERSPECTIVE}}` | the rotating perspective used least recently per the Awareness note `review-lens-history-<name>` (e.g. `review-lens-history-mcp-synology`; shared with QA). Dev reads it before dispatching and adds a line after the review. If the note can't be read, pick by relevance, say so in the PR body, and add the line once it can |
+| `{{PERSPECTIVE}}` | the rotating perspective used least recently per the Awareness note `review-lens-history-<name>` (e.g. `review-lens-history-mcp-synology`; shared with QA; if its description names a newer note, use that one). Dev reads it before dispatching and adds a line after the review. If the note can't be read, pick by relevance, say so in the PR body, and add the line once it can |
 
 `gh` needs a valid token in the reviewer's shell. If the session uses the bot identity, tell the
 reviewer to `source ~/github.com/cmeans/claude-dev/github-app/activate.sh` in each Bash call that
@@ -229,7 +229,7 @@ Each row gets a parametrized test asserting a structured error, or a scratch-rep
 
 ### 5. Body, title and counts after each push (about 14; the most common exact repeat)
 
-- `pytest -q | tail -1`, `git rev-parse --short HEAD` and per-directory `--collect-only`
+- `pytest -q | tail -1`, `git -C {{WORKTREE}} rev-parse --short HEAD` and per-directory `--collect-only`
   counts match every number in the body and CHANGELOG.
 - The title covers the whole diff.
 - A "QA round N" section lists that round's fixes.
@@ -314,7 +314,7 @@ idempotent, and anything that can leave things half done is destructive.
 
 ### 15. Merge state
 
-`git fetch && git merge-tree --write-tree origin/main HEAD` shows no conflicts, especially
+`git -C {{WORKTREE}} fetch && git -C {{WORKTREE}} merge-tree --write-tree origin/main HEAD` shows no conflicts, especially
 in the CHANGELOG. A merge of `main` that needed a hand resolution is named in the PR body:
 which files, and how they were resolved (`git show --remerge-diff <merge>` shows it). QA
 reads the merge too, and an unmentioned resolution is a finding (mcp-synology #291).
