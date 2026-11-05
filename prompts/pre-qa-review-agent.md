@@ -46,7 +46,9 @@ author's view of what matters, which is what this review is there to get past. (
 covers: that round's review was a hand-written prompt, and the fix push had none.)
 
 **Dev's own experiments** (mutation loops, repros, environment probes) follow the template's
-scratch-clone rules too.
+scratch-clone and keyring rules too. (The first pre-QA review of mcp-synology #565, 2026-11-05:
+`env $ENVV` under zsh never set the keyring backend, and `setup` wrote fake credentials to the
+maintainer's real keyring. Dev's note on that prompt said not to; the template said nothing.)
 
 **Dev's own sweep.** After fixing any claim, wording, name or default, whoever reported it,
 `git grep` the repo for the old wording (item 2's method) before committing. A finding names one
@@ -143,6 +145,16 @@ that way, and each crash showed a dialog on the maintainer's desktop). If a tool
 stop and list the check under what you couldn't check rather than retry. Before you
 finish, confirm `git -C {{WORKTREE}} config core.bare` prints false and
 `git -C {{WORKTREE}} status --short` matches `{{SCRATCH}}/status-before.txt`.
+Never read, write or delete the real OS keyring. Run a probe that could reach it (anything
+that stores or resolves credentials) in one literal command, the check and the probe together,
+with the variables written out, never in a `$VAR`: zsh doesn't word-split `env $VARS`, so the
+first variable takes the rest as its value, and an unexported one sets nothing, both with no
+error. Each Bash call is a new shell, so a check in an earlier call proves nothing:
+`bash -c 'set -eu; unset DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR; cd <clone>; export HOME=<scratch>/home PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring; uv run python -c "import keyring, keyring.backends.null as n; assert isinstance(keyring.get_keyring(), n.Keyring)"; <probe>'`
+The null backend stores nothing; a probe that reads back what it stored needs its own small
+`keyring.backend.KeyringBackend` subclass on PYTHONPATH, named in that variable and in the
+check. A repo's own test suite that swaps the backend itself needs none of this. If a probe
+breaks this, stop and report exactly what it wrote.
 Shell commands such as git grep, pytest and piped tails are fine here.
 
 First, from the diff and the code alone (before reading the PR's comments, earlier QA
