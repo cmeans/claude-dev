@@ -245,7 +245,7 @@ In those cases — and only those — the agent that opened the PR must:
    maintainer's. The maintainer doesn't want to be a bottleneck, so when
    an open PR of Dev's or Dependabot's has `QA Approved`, merge it and
    carry on, once all of this holds:
-   - Of the workflow labels (Label ownership above, and `Merge conflict`),
+   - Of the labels in Label ownership above, other than `merge-order: N`,
      its live labels hold only `QA Approved`: nothing but a push removes
      that label, so `QA Failed` or `Ready for QA` can sit beside it. And
      there's no unpushed work on it, here or in another session.
@@ -274,10 +274,10 @@ In those cases — and only those — the agent that opened the PR must:
    PRs for `QA Approved` after each merge, when you clear your own hold,
    and when QA gives a verdict.
 
-   **Behind `main`:** update only the next PR Dev can update (the lowest
-   `merge-order: N` label, else the oldest open one), and say which you
-   skipped. **Conflicting:** update every PR of Dev's right away, since
-   GitHub runs no PR CI on it. Never during `QA Active`, and on
+   **Behind `main`:** update only the next PR Dev can update ("After every
+   merge" below says which), and say which you skipped. **Conflicting:**
+   update every PR of Dev's right away, since GitHub runs no PR CI on it.
+   Never during `QA Active`, and on
    mcp-synology only after main's vdsm run saves the new image if a merge
    changed it. Say that it goes back through CI and QA, since a push
    removes the label. If the next one is anyone else's, tell the
