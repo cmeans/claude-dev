@@ -46,7 +46,7 @@ author's view of what matters, which is what this review is there to get past. (
 covers: that round's review was a hand-written prompt, and the fix push had none.)
 
 **Dev's own experiments** (mutation loops, repros, environment probes) follow the template's
-scratch-clone and keyring rules too. (The first pre-QA review of mcp-synology #565, 2026-11-05:
+scratch-clone, limits and keyring rules too. (The first pre-QA review of mcp-synology #565, 2026-11-05:
 `env $ENVV` under zsh never set the keyring backend, and `setup` wrote fake credentials to the
 maintainer's real keyring. Dev's note on that prompt said not to; the template said nothing.)
 
@@ -143,10 +143,14 @@ repository or any checkout of it; to test such variables, aim them at a clone un
 other binaries from this host inside an older-distro image (uv's musl Python segfaulted
 that way, and each crash showed a dialog on the maintainer's desktop). If a tool crashes,
 stop and list the check under what you couldn't check rather than retry. Run mutation checks,
-probes, and anything on other dependency versions with their own limits:
-`systemd-run --user --scope --quiet -p MemoryMax=<limit> -p MemorySwapMax=0 -p RuntimeMaxSec=<secs> <command>`.
+probes, heavy builds and anything on other dependency versions with their own limits:
+`systemd-run --user --scope --quiet --unit=<name> -p MemoryMax=<limit> -p MemorySwapMax=0 -p RuntimeMaxSec=<secs> <command>`,
+outside any keyring `bash -c` below (it needs the session bus), with `podman run --memory=<limit> --memory-swap=<limit> --timeout=<secs>` for a container, which the scope doesn't cover.
 A global out-of-memory kill can take out other sessions on this machine. A run that hits a
-limit is a finding to report, not one to retry without limits. Before you
+limit by accident is a finding to report, not one to retry without limits. A probe that hits a
+memory limit on purpose adds `-p OOMPolicy=continue`; without it, each kill raises a false "Device
+memory is nearly full" alert on the maintainer's desktop. Clear each scope that failed with
+`systemctl --user reset-failed <name>.scope`. Before you
 finish, confirm `git -C {{WORKTREE}} config core.bare` prints false and
 `git -C {{WORKTREE}} status --short` matches `{{SCRATCH}}/status-before.txt`.
 Never read, write or delete the real OS keyring. Run a probe that could reach it (anything

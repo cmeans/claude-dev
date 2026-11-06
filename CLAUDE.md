@@ -580,13 +580,31 @@ locked dependencies. That covers runs on other dependency versions, mutation run
 heavy builds (maintainer, 2026-11-05):
 
 ```
-systemd-run --user --scope --quiet -p MemoryMax=<limit> -p MemorySwapMax=0 -p RuntimeMaxSec=<secs> <command>
+systemd-run --user --scope --quiet --unit=<name> -p MemoryMax=<limit> -p MemorySwapMax=0 -p RuntimeMaxSec=<secs> <command>
 ```
 
-The limits apply to the whole run, workers included, and hitting either kills only that scope:
-exit 137 for memory, 143 for time. Prefer this to `timeout`, which left a detached child running
-when tested, and to `prlimit --as`, which is per process, so parallel workers can still add up.
+The limits apply to the command and its workers, and hitting either stops only that scope. Prefer
+this to `timeout`, which left a detached child running when tested, and to `prlimit --as`, which is
+per process, so parallel workers can still add up. `<command>` is one executable: put an env prefix,
+`&&` or a pipe inside `bash -c '...'`, or the limits miss part of it.
 
+- **The exit code doesn't say which limit was hit.** It's often 137 for memory and 143 for time,
+  but a parent whose worker was killed at the memory limit also gets 143, and a command that ignores
+  SIGTERM gets 137 at the time limit. Read `systemctl --user show -p Result --value <name>.scope`
+  (`oom-kill` or `timeout`), then clear it with `systemctl --user reset-failed <name>.scope`: a
+  scope that hit a limit stays failed and leaves the user manager `degraded`.
+- **Containers aren't covered.** A `podman run` under this recipe runs in its own scope, outside
+  both limits, and keeps running after a time limit. Give it its own: `podman run --memory=<limit>
+  --memory-swap=<limit> --timeout=<secs>` (exit 137 for memory, 255 for time).
+- **A scope isn't a sandbox.** It limits accidents. Code inside can start its own unit over the
+  user bus and outlive the limits, so outside contributors' code still goes in a throwaway container
+  (global `CLAUDE.md`). `systemd-run --user` needs the session bus, so it goes outside the pre-QA
+  template's keyring `bash -c`, not inside it.
+- **Hitting a memory limit raises a desktop alert.** On GNOME, a scope that ends with
+  `Result=oom-kill` makes `gnome-settings-daemon` show "Device memory is nearly full", however much
+  memory is free. For a real run, that's a sign the run hit its limit. **A test that hits a memory
+  limit on purpose adds `-p OOMPolicy=continue`**, which raises no alert. Only for such a test: the
+  scope then reports `Result=success` and doesn't stop the remaining workers.
 - **A Bash tool timeout doesn't stop a command.** Claude Code moves it to the background, where
   it keeps running. If a run passes its usual duration, stop it by PID and investigate under
   limits. Don't report it as "still going" without checking it.
