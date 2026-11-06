@@ -146,7 +146,9 @@ stop and list the check under what you couldn't check rather than retry. Run mut
 probes, heavy builds and anything on other dependency versions with their own limits:
 `systemd-run --user --scope --quiet --unit=<name> -p MemoryMax=<limit> -p MemorySwapMax=0 -p RuntimeMaxSec=<secs> <command>`,
 outside any keyring `bash -c` below (it needs the session bus), with `podman run --memory=<limit> --memory-swap=<limit> --timeout=<secs>` for a container, which the scope doesn't cover.
-A global out-of-memory kill can take out other sessions on this machine. A run that hits a
+Use a fresh `<name>` per run: a name still held by a running or failed scope doesn't start and
+exits 1, which a loop can read as a failed test. Files in a scratch clone on tmpfs count against
+`<limit>`. A global out-of-memory kill can take out other sessions on this machine. A run that hits a
 limit by accident is a finding to report, not one to retry without limits. A probe that hits a
 memory limit on purpose adds `-p OOMPolicy=continue`; without it, each kill raises a false "Device
 memory is nearly full" alert on the maintainer's desktop. Clear each scope that failed with

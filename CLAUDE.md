@@ -575,9 +575,10 @@ actor is immutable. Instead:
 
 ## Runs that could hang or grow
 
-**Give a run its own memory and time limits** unless it's the repo's known-good suite on the
-locked dependencies. That covers runs on other dependency versions, mutation runs, probes and
-heavy builds (maintainer, 2026-11-05):
+**Give a run its own memory and time limits** unless it's the repo's known-good suite (as `main`
+has it) on the locked dependencies. That covers runs on other dependency versions, mutation runs,
+probes, heavy builds and a suite with a new test that reads a stream or could loop (maintainer,
+2026-11-05):
 
 ```
 systemd-run --user --scope --quiet --unit=<name> -p MemoryMax=<limit> -p MemorySwapMax=0 -p RuntimeMaxSec=<secs> <command>
@@ -585,17 +586,24 @@ systemd-run --user --scope --quiet --unit=<name> -p MemoryMax=<limit> -p MemoryS
 
 The limits apply to the command and its workers, and hitting either stops only that scope. Prefer
 this to `timeout`, which left a detached child running when tested, and to `prlimit --as`, which is
-per process, so parallel workers can still add up. `<command>` is one executable: put an env prefix,
-`&&` or a pipe inside `bash -c '...'`, or the limits miss part of it.
+per process, so parallel workers can still add up. Keep `<limit>` well under the memory free now:
+a higher one protects nothing. Files on tmpfs count against it, including scratch clones in `/tmp`.
+
+`<command>` is one executable. `&&` or a pipe goes inside `bash -c '...'`, or the limits miss the
+rest. A variable goes before `systemd-run` or in `env FOO=1` after the options; a bare `FOO=1`
+there fails to start. Use a fresh `<name>` per run (a loop adds its counter): a name still held by
+a running or failed scope doesn't start and exits 1, which a loop can read as a failed test.
 
 - **The exit code doesn't say which limit was hit.** It's often 137 for memory and 143 for time,
   but a parent whose worker was killed at the memory limit also gets 143, and a command that ignores
-  SIGTERM gets 137 at the time limit. Read `systemctl --user show -p Result --value <name>.scope`
-  (`oom-kill` or `timeout`), then clear it with `systemctl --user reset-failed <name>.scope`: a
-  scope that hit a limit stays failed and leaves the user manager `degraded`.
+  SIGTERM gets 137 about 45 s after the time limit. Read
+  `systemctl --user show -p Result --value <name>.scope` (`oom-kill` or `timeout`), then clear it
+  with `systemctl --user reset-failed <name>.scope`: a scope that hit a limit stays failed and
+  leaves the user manager `degraded`.
 - **Containers aren't covered.** A `podman run` under this recipe runs in its own scope, outside
   both limits, and keeps running after a time limit. Give it its own: `podman run --memory=<limit>
-  --memory-swap=<limit> --timeout=<secs>` (exit 137 for memory, 255 for time).
+  --memory-swap=<limit> --timeout=<secs>` (exit 137 for memory, 255 for time). A container that
+  test code starts, such as vdsm, takes its limit in that code.
 - **A scope isn't a sandbox.** It limits accidents. Code inside can start its own unit over the
   user bus and outlive the limits, so outside contributors' code still goes in a throwaway container
   (global `CLAUDE.md`). `systemd-run --user` needs the session bus, so it goes outside the pre-QA
@@ -605,13 +613,20 @@ per process, so parallel workers can still add up. `<command>` is one executable
   memory is free. For a real run, that's a sign the run hit its limit. **A test that hits a memory
   limit on purpose adds `-p OOMPolicy=continue`**, which raises no alert. Only for such a test: the
   scope then reports `Result=success` and doesn't stop the remaining workers.
+- **What's suppressed for a test comes back after a reboot** (maintainer, 2026-11-05). Prefer a
+  setting that ends with the run, as above. If it must be machine-wide, keep it where a reboot
+  clears it (`/run`, `systemctl --runtime`), not in `gsettings`. If it must persist, save the prior
+  state outside `/tmp` first, restore from an exit trap and at session start, test the restore, and
+  tell the maintainer what's off and how it comes back.
 - **A Bash tool timeout doesn't stop a command.** Claude Code moves it to the background, where
   it keeps running. If a run passes its usual duration, stop it by PID and investigate under
   limits. Don't report it as "still going" without checking it.
 - **Why:** global out-of-memory kills stopped Warp, and every Dev and QA session in it, on
   2026-11-04 (a mutation run reading `/dev/zero`) and 2026-11-05 (a floor-version test run that
-  hung for about 53 minutes). Warp now has `OOMPolicy=continue` on this machine, so one kill no
-  longer stops the rest, but the process killed can still be a session.
+  hung for about 53 minutes). Warp now has `OOMPolicy=continue` on this machine, so one kernel kill
+  should no longer stop the rest (tested only at a cgroup limit; `systemd-oomd` can still kill the
+  whole scope), but the process killed can still be a session. GNOME shows no alert for kills in
+  Warp's scope then, so a local watcher reports them: Awareness `warp-oom-notify`.
 
 ## Tool conventions
 
