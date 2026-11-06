@@ -573,6 +573,28 @@ actor is immutable. Instead:
   (after re-sourcing `activate.sh`), or squash it out in a follow-up
   if already pushed.
 
+## Runs that could hang or grow
+
+**Give a run its own memory and time limits** unless it's the repo's known-good suite on the
+locked dependencies. That covers runs on other dependency versions, mutation runs, probes and
+heavy builds (maintainer, 2026-11-05):
+
+```
+systemd-run --user --scope --quiet -p MemoryMax=<limit> -p MemorySwapMax=0 -p RuntimeMaxSec=<secs> <command>
+```
+
+The limits apply to the whole run, workers included, and hitting either kills only that scope:
+exit 137 for memory, 143 for time. Prefer this to `timeout`, which left a detached child running
+when tested, and to `prlimit --as`, which is per process, so parallel workers can still add up.
+
+- **A Bash tool timeout doesn't stop a command.** Claude Code moves it to the background, where
+  it keeps running. If a run passes its usual duration, stop it by PID and investigate under
+  limits. Don't report it as "still going" without checking it.
+- **Why:** global out-of-memory kills stopped Warp, and every Dev and QA session in it, on
+  2026-11-04 (a mutation run reading `/dev/zero`) and 2026-11-05 (a floor-version test run that
+  hung for about 53 minutes). Warp now has `OOMPolicy=continue` on this machine, so one kill no
+  longer stops the rest, but the process killed can still be a session.
+
 ## Tool conventions
 
 - Never use `sed`/`awk` for file edits — always use the Edit tool

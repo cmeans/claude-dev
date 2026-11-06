@@ -142,7 +142,11 @@ repository or any checkout of it; to test such variables, aim them at a clone un
 {{SCRATCH}}. In a container, use the image's own tools: don't run uv-managed Python or
 other binaries from this host inside an older-distro image (uv's musl Python segfaulted
 that way, and each crash showed a dialog on the maintainer's desktop). If a tool crashes,
-stop and list the check under what you couldn't check rather than retry. Before you
+stop and list the check under what you couldn't check rather than retry. Run mutation checks,
+probes, and anything on other dependency versions with their own limits:
+`systemd-run --user --scope --quiet -p MemoryMax=<limit> -p MemorySwapMax=0 -p RuntimeMaxSec=<secs> <command>`.
+A global out-of-memory kill can take out other sessions on this machine. A run that hits a
+limit is a finding to report, not one to retry without limits. Before you
 finish, confirm `git -C {{WORKTREE}} config core.bare` prints false and
 `git -C {{WORKTREE}} status --short` matches `{{SCRATCH}}/status-before.txt`.
 Never read, write or delete the real OS keyring. Run a probe that could reach it (anything
