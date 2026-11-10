@@ -143,6 +143,12 @@ These workflows handle most label transitions automatically:
   PR with no workflow label one from its checks, so removing a PR's last
   workflow label by hand doesn't hold it; `Dev Active` does. It comments
   once when a result is still missing 30 minutes after its runs finished.
+  With mcp-synology #582, a failed `CodeQL` check (GitHub's default setup,
+  not a workflow) counts as a failure too: `CI Failed`, with a comment
+  saying it's CodeQL. At `Ready for QA` the recheck only comments, once per
+  commit and failed check, and leaves the label, as it may be a hand label
+  (except beside `Awaiting CI` or `CI Failed` on a fork). A CodeQL alert
+  clears by fixing what it reports and pushing, not by re-running CI.
 
 In the normal case Dev does nothing for label transitions after pushing
 — the automation handles it. Dev's job is to apply `Dev Active` while
