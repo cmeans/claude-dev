@@ -102,7 +102,7 @@ Who applies what — honor this boundary:
 | `Ready for QA Signoff` |                            | ✅   |                    |                                    |
 | `QA Failed`            |                            | ✅   |                    |                                    |
 | **`QA Approved`**      | ❌ **never**                | ❌ **never** | ✅ **only Chris**   |                                    |
-| `CI Failed`            |                            |     |                    | ✅ `pr-labels-ci.yml` on CI fail    |
+| `CI Failed`            |                            |     |                    | ✅ `pr-labels-ci.yml` on a CI, vdsm or CodeQL fail |
 | `Behind main`          | ❌ never by hand            | ❌ never by hand |              | ✅ `pr-behind-main.yml`             |
 | `Merge conflict`       | ❌ never by hand            | ❌ never by hand |              | ✅ `pr-behind-main.yml`             |
 | `merge-order: N`       | ✅ apply as a proposal      | read only | ✅ sets / overrides |                                    |
@@ -128,7 +128,12 @@ These workflows handle most label transitions automatically:
   add, cleans up labels that no longer apply.
 - **`pr-labels-ci.yml`** — on CI completion: promotes `Awaiting CI` →
   `Ready for QA` on success, → `CI Failed` on failure. Skips PRs that
-  have `Dev Active` (dev isn't done).
+  have `Dev Active` (dev isn't done). With mcp-synology #582 a failed
+  `CodeQL` check (GitHub's default setup, not a workflow) counts too, in
+  all three label workflows: `CI Failed`, with a comment saying it's
+  CodeQL. Re-running CI doesn't change a failed CodeQL check; a push that
+  fixes what the alert reports is the known way out (an empty commit is
+  expected to fail again).
 - **`qa-gate.yml`** — posts a `QA Gate` commit status that becomes
   `success` only when `QA Approved` is present. Merges blocked by
   branch protection until then.
@@ -142,13 +147,12 @@ These workflows handle most label transitions automatically:
   settles a PR on `Awaiting CI` or `CI Failed`, and gives a same-repository
   PR with no workflow label one from its checks, so removing a PR's last
   workflow label by hand doesn't hold it; `Dev Active` does. It comments
-  once when a result is still missing 30 minutes after its runs finished.
-  With mcp-synology #582, a failed `CodeQL` check (GitHub's default setup,
-  not a workflow) counts as a failure too: `CI Failed`, with a comment
-  saying it's CodeQL. At `Ready for QA` the recheck only comments, once per
-  commit and failed check, and leaves the label, as it may be a hand label
-  (except beside `Awaiting CI` or `CI Failed` on a fork). A CodeQL alert
-  clears by fixing what it reports and pushing, not by re-running CI.
+  when a result is still missing 30 minutes after its runs finished, once
+  per commit and missing name; a `CodeQL` check that never finishes holds
+  the PR at `Awaiting CI` too, and that comment says so. With mcp-synology
+  #582 it also reads PRs at `Ready for QA`: on a failure it only comments,
+  once per commit and failed check, and leaves the label, as it may be a
+  hand label (except beside `Awaiting CI` or `CI Failed` on a fork).
 
 In the normal case Dev does nothing for label transitions after pushing
 — the automation handles it. Dev's job is to apply `Dev Active` while
