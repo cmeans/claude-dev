@@ -253,11 +253,13 @@ In those cases — and only those — the agent that opened the PR must:
        `perspective gave: <p> (<what>)`, with `0` when it gave nothing. Every Dev line has
        that last field, even when it's 0: the 2026-11-10 yield analysis (Awareness
        `perspective-yield-analysis-2026-11-10`) found the perspective's yield recorded in
-       only 46% of rows, mostly when there was a hit, so no rate could be trusted. A line
-       goes in its own entry tagged `["<name>", "review", "qa"]` (`add_context`,
-       `expires_days: 365`, so the next analysis still has it), or in the note itself; add
-       lines, don't rewrite others'. QA's rule is in Claude-QA's `CLAUDE.md`, and QA was
-       asked to log the same field.
+       only 46% of rows, mostly when there was a hit, so no rate could be trusted. The line
+       goes in the note itself, as QA's do (maintainer, 2026-11-05), so the note alone
+       holds every row the pick reads: re-read it right before writing, since an update
+       replaces the whole note, and keep every other line as it is. When the note grows
+       too long, start a continuation note and name it in the old one's description. Never
+       a separate entry: QA picks from the note and would miss it (QA on claude-dev #24).
+       QA's own rule is in Claude-QA's `CLAUDE.md`.
      - **Variants:** for every finding from either pass, the whole repo is searched for
        the same pattern. An instance out of the PR's scope gets an issue before QA
        (checklist section 6).
