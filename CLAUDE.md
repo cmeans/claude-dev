@@ -225,17 +225,47 @@ In those cases — and only those — the agent that opened the PR must:
      skill (`anthropic-skills:critical-code-review`) in Diff mode on the branch, as the
      template says. Its findings count like the checklist's.
      - **Scope:** lenses add up by what the diff touches: A–E for source (workflows and
-       scripts included), F for tests, H for docs; one rotating perspective in every
+       scripts included), F for tests, H for docs; one perspective (Rotation, below) in every
        case; all the skill's rules.
      - **Rotation:** before dispatching, read the Awareness note
        `review-lens-history-<name>` (`<name>`: repo name without the owner, e.g.
        `review-lens-history-mcp-synology`; shared with QA; if missing, create it with tags
-       `["<name>", "review", "qa"]`; if its description names a newer note, use that one)
-       and pass the least recently used perspective as
-       `{{PERSPECTIVE}}`. After the review, re-read the note and add one line: date, mode,
-       who (Dev pre-QA), PR, head, perspective, findings. Add lines; don't rewrite others'.
-       If the note can't be read, pick by relevance, say so in the PR body, and add the
-       line later.
+       `["<name>", "review", "qa"]`) and pick `{{PERSPECTIVE}}` (maintainer, 2026-11-10).
+       The log runs across a chain of notes: each continuation note's description names the
+       note it continues, and the older one's names the newer (`review-lens-history-<name>`,
+       then `…-<suffix>`). Follow the newer names to the newest note, where lines are added;
+       for the pick, also read back through the older notes until every perspective has a
+       row and this PR's earlier rounds are covered.
+       - **A PR's first review** takes the perspective that fits the change best (a
+         redaction change: the prompt-injection attacker; a reply's wording: the model as
+         user; a timeout: the 3 a.m. operator). When two fit about equally, the least
+         recently used of them wins.
+       - **Every later review of the same PR** takes the least recently used perspective
+         that PR hasn't had yet, so each round looks from a new angle. Once it has had all
+         eight, it starts over with the one it had longest ago.
+       - **What counts:** every row of those notes, Dev's and QA's, across all PRs. "Least
+         recently used" is by each perspective's last row; "had" counts Dev's and QA's
+         reviews of the PR. H and F rows (docs-only or test-only, no perspective) don't
+         count.
+       - **If the note can't be read:** on a first review pick by fit; on a later one,
+         one this PR hasn't had (from the earlier PR bodies). Say so in the PR body, and add
+         the line later.
+
+       After the review, re-read the note and add one Dev line: date, mode, who (Dev
+       pre-QA), PR, round (Dev's pre-QA round on this PR, r1 at the first push), head,
+       perspective, `picked: fit (<why>)` or `picked: rotation`, findings, and
+       `perspective gave: <p> (<what>)`, with `0` when it gave nothing. Every Dev line has
+       that last field, even when it's 0: the 2026-11-10 yield analysis (Awareness
+       `perspective-yield-analysis-2026-11-10`) found the perspective's yield recorded in
+       only 46% of rows, mostly when there was a hit, so no rate could be trusted. The line
+       goes in the newest note itself, as QA's do (maintainer, 2026-11-05), never in a
+       separate entry: the pick reads only the notes (QA on claude-dev #24). An update
+       replaces the whole note, so re-read it right before writing and keep every other line
+       as it is; after writing, read it again and check your line is there and no other line
+       went missing (restore one from the entry's history, `include_history='true'`). When
+       the note grows too long, start a continuation note with the same tags: its
+       description names the note it continues, and the older note's description names it.
+       QA's own rule is in Claude-QA's `CLAUDE.md`.
      - **Variants:** for every finding from either pass, the whole repo is searched for
        the same pattern. An instance out of the PR's scope gets an issue before QA
        (checklist section 6).
@@ -243,9 +273,10 @@ In those cases — and only those — the agent that opened the PR must:
        reading the PR's comments or earlier QA rounds, then the checklist, and marks each
        finding New, Known-open or Regressed.
      - **Reporting:** findings are tagged by lens or perspective and marked Reproduced or
-       Read; the review ends with `Diff-mode: lenses <…>, perspective <X>, variants
-       checked: <n>`. The PR body's pre-QA line counts how many of the findings came from
-       Diff mode.
+       Read; the review ends with `Diff-mode: lenses <…>, perspective <X> gave <p>, variants
+       checked: <v>` (`<p>`: the findings the perspective itself led to, `0` included;
+       `<v>`: the variants searched). The PR body's pre-QA line counts how many of the
+       findings came from Diff mode.
      - **Tracking:** in `pre-qa-tracking-<name>`, record per round how many pre-QA
        findings came from Diff mode, and which later QA findings it would have covered.
 1. Dev finishes work → push triggers `Awaiting CI` automatically.
