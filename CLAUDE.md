@@ -237,15 +237,27 @@ In those cases — and only those — the agent that opened the PR must:
          user; a timeout: the 3 a.m. operator). When two fit about equally, the least
          recently used of them wins.
        - **Every later review of the same PR** takes the least recently used perspective
-         that PR hasn't had yet, so each round looks from a new angle.
+         that PR hasn't had yet, so each round looks from a new angle. Once it has had all
+         eight, it starts over with the one it had longest ago.
+       - **What counts:** every row of the note, Dev's and QA's, across all PRs. "Least
+         recently used" is by each perspective's last row; "had" counts Dev's and QA's
+         reviews of the PR. H and F rows (docs-only or test-only, no perspective) don't
+         count.
+       - **If the note can't be read:** on a first review pick by fit; on a later one,
+         one this PR hasn't had (from the earlier PR bodies). Say so in the PR body, and add
+         the line later.
 
-       After the review, re-read the note and add one line: date, mode, who (Dev pre-QA),
-       PR, round, head, perspective, `picked: fit (<why>)` or `picked: rotation`, findings,
-       and `perspective gave: <n> (<what>)`, with `0` when it gave nothing. Every line has
+       After the review, re-read the note and add one Dev line: date, mode, who (Dev
+       pre-QA), PR, round (Dev's pre-QA round on this PR, r1 at the first push), head,
+       perspective, `picked: fit (<why>)` or `picked: rotation`, findings, and
+       `perspective gave: <p> (<what>)`, with `0` when it gave nothing. Every Dev line has
        that last field, even when it's 0: the 2026-11-10 yield analysis (Awareness
-       `perspective-yield-analysis-2026-11-10`) found it in only 46% of rows, mostly when
-       there was a hit, so no rate could be trusted. Add lines; don't rewrite others'. If
-       the note can't be read, pick by fit, say so in the PR body, and add the line later.
+       `perspective-yield-analysis-2026-11-10`) found the perspective's yield recorded in
+       only 46% of rows, mostly when there was a hit, so no rate could be trusted. A line
+       goes in its own entry tagged `["<name>", "review", "qa"]` (`add_context`,
+       `expires_days: 365`, so the next analysis still has it), or in the note itself; add
+       lines, don't rewrite others'. QA's rule is in Claude-QA's `CLAUDE.md`, and QA was
+       asked to log the same field.
      - **Variants:** for every finding from either pass, the whole repo is searched for
        the same pattern. An instance out of the PR's scope gets an issue before QA
        (checklist section 6).
@@ -253,8 +265,9 @@ In those cases — and only those — the agent that opened the PR must:
        reading the PR's comments or earlier QA rounds, then the checklist, and marks each
        finding New, Known-open or Regressed.
      - **Reporting:** findings are tagged by lens or perspective and marked Reproduced or
-       Read; the review ends with `Diff-mode: lenses <…>, perspective <X> gave <n>, variants
-       checked: <n>`. The PR body's pre-QA line counts how many of the findings came from
+       Read; the review ends with `Diff-mode: lenses <…>, perspective <X> gave <p>, variants
+       checked: <v>` (`<p>`: the findings the perspective itself led to, `0` included;
+       `<v>`: the variants searched). The PR body's pre-QA line counts how many of the findings came from
        Diff mode.
      - **Tracking:** in `pre-qa-tracking-<name>`, record per round how many pre-QA
        findings came from Diff mode, and which later QA findings it would have covered.
