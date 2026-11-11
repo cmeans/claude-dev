@@ -106,7 +106,7 @@ propose a change (or dropping a part of it), rather than keep running it unexami
 | `{{ISSUE_LINE}}` | `Issue: #N (read it with gh issue view N --comments).` If there's no issue, a sentence stating the intent instead |
 | `{{BODY_LINE}}` | First push: `PR body draft: <absolute path>` (write the draft to the session scratchpad first). Fix push: `PR: #N (gh pr view N --comments), including QA's latest round` |
 | `{{SCRATCH}}` | an absolute path in the session scratchpad, for the reviewer's repros and scratch clones |
-| `{{PERSPECTIVE}}` | the rotating perspective used least recently per the Awareness note `review-lens-history-<name>` (e.g. `review-lens-history-mcp-synology`; shared with QA; if its description names a newer note, use that one). Dev reads it before dispatching and adds a line after the review. If the note can't be read, pick by relevance, say so in the PR body, and add the line once it can |
+| `{{PERSPECTIVE}}` | picked as `CLAUDE.md`'s Rotation item says: on a PR's first review, the perspective that fits the change best (least recently used breaks a tie); on every later review of it, the least recently used one that PR hasn't had, per the Awareness note `review-lens-history-<name>` (e.g. `review-lens-history-mcp-synology`; shared with QA; if its description names a newer note, use that one). Dev reads it before dispatching and adds a line after the review, with how it was picked and `perspective gave: <n> (<what>)`, `0` included. If the note can't be read, pick by fit, say so in the PR body, and add the line once it can |
 
 `gh` needs a valid token in the reviewer's shell. If the session uses the bot identity, tell the
 reviewer to `source ~/github.com/cmeans/claude-dev/github-app/activate.sh` in each Bash call that
@@ -170,7 +170,7 @@ Shell commands such as git grep, pytest and piped tails are fine here.
 
 First, from the diff and the code alone (before reading the PR's comments, earlier QA
 rounds or review notes), run the critical-code-review skill
-(anthropic-skills:critical-code-review) in Diff mode, with the rotating perspective
+(anthropic-skills:critical-code-review) in Diff mode, with the perspective
 {{PERSPECTIVE}}. Lenses add up by what the diff touches: A-E for source code (workflows and
 scripts included), F for tests, H for docs, so a code-and-tests change gets A-F. All the
 skill's rules apply. Of its toolchain, run what the repo has (tests, lint, format, type
@@ -190,7 +190,8 @@ the other instances, or that there are none. Tag each finding by lens or perspec
 or Read (lines quoted from the files; enough for a docs finding, while anything inferred
 beyond what's quoted is "suspected"), and mark it New, Known-open (an open issue or an
 earlier round already has it) or Regressed. End with the line:
-Diff-mode: lenses <the ones that applied, e.g. A-F or H>, perspective <X>, variants checked: <n>.
+Diff-mode: lenses <the ones that applied, e.g. A-F or H>, perspective <X> gave <n>, variants checked: <n>.
+(<n> counts the findings the perspective itself led to, not the lenses' or the checklist's; write 0 when it led to none.)
 
 Return a table: # | severity (bug / nit / doc) | file:line | finding | evidence | suggested fix.
 Check the premise of each suggested fix with a probe, and say which ones you probed.

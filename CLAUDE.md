@@ -225,17 +225,27 @@ In those cases — and only those — the agent that opened the PR must:
      skill (`anthropic-skills:critical-code-review`) in Diff mode on the branch, as the
      template says. Its findings count like the checklist's.
      - **Scope:** lenses add up by what the diff touches: A–E for source (workflows and
-       scripts included), F for tests, H for docs; one rotating perspective in every
+       scripts included), F for tests, H for docs; one perspective (Rotation, below) in every
        case; all the skill's rules.
      - **Rotation:** before dispatching, read the Awareness note
        `review-lens-history-<name>` (`<name>`: repo name without the owner, e.g.
        `review-lens-history-mcp-synology`; shared with QA; if missing, create it with tags
        `["<name>", "review", "qa"]`; if its description names a newer note, use that one)
-       and pass the least recently used perspective as
-       `{{PERSPECTIVE}}`. After the review, re-read the note and add one line: date, mode,
-       who (Dev pre-QA), PR, head, perspective, findings. Add lines; don't rewrite others'.
-       If the note can't be read, pick by relevance, say so in the PR body, and add the
-       line later.
+       and pick `{{PERSPECTIVE}}` (maintainer, 2026-11-10):
+       - **A PR's first review** takes the perspective that fits the change best (a
+         redaction change: the prompt-injection attacker; a reply's wording: the model as
+         user; a timeout: the 3 a.m. operator). When two fit about equally, the least
+         recently used of them wins.
+       - **Every later review of the same PR** takes the least recently used perspective
+         that PR hasn't had yet, so each round looks from a new angle.
+
+       After the review, re-read the note and add one line: date, mode, who (Dev pre-QA),
+       PR, round, head, perspective, `picked: fit (<why>)` or `picked: rotation`, findings,
+       and `perspective gave: <n> (<what>)`, with `0` when it gave nothing. Every line has
+       that last field, even when it's 0: the 2026-11-10 yield analysis (Awareness
+       `perspective-yield-analysis-2026-11-10`) found it in only 46% of rows, mostly when
+       there was a hit, so no rate could be trusted. Add lines; don't rewrite others'. If
+       the note can't be read, pick by fit, say so in the PR body, and add the line later.
      - **Variants:** for every finding from either pass, the whole repo is searched for
        the same pattern. An instance out of the PR's scope gets an issue before QA
        (checklist section 6).
@@ -243,7 +253,7 @@ In those cases — and only those — the agent that opened the PR must:
        reading the PR's comments or earlier QA rounds, then the checklist, and marks each
        finding New, Known-open or Regressed.
      - **Reporting:** findings are tagged by lens or perspective and marked Reproduced or
-       Read; the review ends with `Diff-mode: lenses <…>, perspective <X>, variants
+       Read; the review ends with `Diff-mode: lenses <…>, perspective <X> gave <n>, variants
        checked: <n>`. The PR body's pre-QA line counts how many of the findings came from
        Diff mode.
      - **Tracking:** in `pre-qa-tracking-<name>`, record per round how many pre-QA
