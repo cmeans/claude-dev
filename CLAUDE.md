@@ -131,9 +131,10 @@ These workflows handle most label transitions automatically:
   have `Dev Active` (dev isn't done). With mcp-synology #582 a failed
   `CodeQL` check (GitHub's default setup, not a workflow) counts too, in
   all three label workflows: `CI Failed`, with a comment saying it's
-  CodeQL. Re-running CI doesn't change a failed CodeQL check; a push that
-  fixes what the alert reports is the known way out (an empty commit is
-  expected to fail again).
+  CodeQL when CodeQL is the only failure (with a workflow job failed too,
+  the label comes without that comment). Re-running CI doesn't change a
+  failed CodeQL check; a push that fixes what the alert reports is the
+  known way out (an empty commit is expected to fail again).
 - **`qa-gate.yml`** — posts a `QA Gate` commit status that becomes
   `success` only when `QA Approved` is present. Merges blocked by
   branch protection until then.
