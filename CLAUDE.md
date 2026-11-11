@@ -230,8 +230,12 @@ In those cases — and only those — the agent that opened the PR must:
      - **Rotation:** before dispatching, read the Awareness note
        `review-lens-history-<name>` (`<name>`: repo name without the owner, e.g.
        `review-lens-history-mcp-synology`; shared with QA; if missing, create it with tags
-       `["<name>", "review", "qa"]`; if its description names a newer note, use that one)
-       and pick `{{PERSPECTIVE}}` (maintainer, 2026-11-10):
+       `["<name>", "review", "qa"]`) and pick `{{PERSPECTIVE}}` (maintainer, 2026-11-10).
+       The log runs across a chain of notes: each continuation note's description names the
+       note it continues, and the older one's names the newer (`review-lens-history-<name>`,
+       then `…-<suffix>`). Follow the newer names to the newest note, where lines are added;
+       for the pick, also read back through the older notes until every perspective has a
+       row and this PR's earlier rounds are covered.
        - **A PR's first review** takes the perspective that fits the change best (a
          redaction change: the prompt-injection attacker; a reply's wording: the model as
          user; a timeout: the 3 a.m. operator). When two fit about equally, the least
@@ -239,7 +243,7 @@ In those cases — and only those — the agent that opened the PR must:
        - **Every later review of the same PR** takes the least recently used perspective
          that PR hasn't had yet, so each round looks from a new angle. Once it has had all
          eight, it starts over with the one it had longest ago.
-       - **What counts:** every row of the note, Dev's and QA's, across all PRs. "Least
+       - **What counts:** every row of those notes, Dev's and QA's, across all PRs. "Least
          recently used" is by each perspective's last row; "had" counts Dev's and QA's
          reviews of the PR. H and F rows (docs-only or test-only, no perspective) don't
          count.
@@ -254,11 +258,13 @@ In those cases — and only those — the agent that opened the PR must:
        that last field, even when it's 0: the 2026-11-10 yield analysis (Awareness
        `perspective-yield-analysis-2026-11-10`) found the perspective's yield recorded in
        only 46% of rows, mostly when there was a hit, so no rate could be trusted. The line
-       goes in the note itself, as QA's do (maintainer, 2026-11-05), so the note alone
-       holds every row the pick reads: re-read it right before writing, since an update
-       replaces the whole note, and keep every other line as it is. When the note grows
-       too long, start a continuation note and name it in the old one's description. Never
-       a separate entry: QA picks from the note and would miss it (QA on claude-dev #24).
+       goes in the newest note itself, as QA's do (maintainer, 2026-11-05), never in a
+       separate entry: the pick reads only the notes (QA on claude-dev #24). An update
+       replaces the whole note, so re-read it right before writing and keep every other line
+       as it is; after writing, read it again and check your line is there and no other line
+       went missing (restore one from the entry's history, `include_history='true'`). When
+       the note grows too long, start a continuation note with the same tags: its
+       description names the note it continues, and the older note's description names it.
        QA's own rule is in Claude-QA's `CLAUDE.md`.
      - **Variants:** for every finding from either pass, the whole repo is searched for
        the same pattern. An instance out of the PR's scope gets an issue before QA
@@ -269,8 +275,8 @@ In those cases — and only those — the agent that opened the PR must:
      - **Reporting:** findings are tagged by lens or perspective and marked Reproduced or
        Read; the review ends with `Diff-mode: lenses <…>, perspective <X> gave <p>, variants
        checked: <v>` (`<p>`: the findings the perspective itself led to, `0` included;
-       `<v>`: the variants searched). The PR body's pre-QA line counts how many of the findings came from
-       Diff mode.
+       `<v>`: the variants searched). The PR body's pre-QA line counts how many of the
+       findings came from Diff mode.
      - **Tracking:** in `pre-qa-tracking-<name>`, record per round how many pre-QA
        findings came from Diff mode, and which later QA findings it would have covered.
 1. Dev finishes work → push triggers `Awaiting CI` automatically.

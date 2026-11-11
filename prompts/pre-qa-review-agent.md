@@ -106,7 +106,7 @@ propose a change (or dropping a part of it), rather than keep running it unexami
 | `{{ISSUE_LINE}}` | `Issue: #N (read it with gh issue view N --comments).` If there's no issue, a sentence stating the intent instead |
 | `{{BODY_LINE}}` | First push: `PR body draft: <absolute path>` (write the draft to the session scratchpad first). Fix push: `PR: #N (gh pr view N --comments), including QA's latest round` |
 | `{{SCRATCH}}` | an absolute path in the session scratchpad, for the reviewer's repros and scratch clones |
-| `{{PERSPECTIVE}}` | picked by the Rotation item of claude-dev's `CLAUDE.md` (handoff step 0, Diff-mode pass), from the Awareness note `review-lens-history-<name>` (e.g. `review-lens-history-mcp-synology`; shared with QA; if its description names a newer note, use that one): by fit on a PR's first review, by rotation after. Dev adds the line after the review |
+| `{{PERSPECTIVE}}` | picked by the Rotation item of claude-dev's `CLAUDE.md` (handoff step 0, Diff-mode pass), from the Awareness note `review-lens-history-<name>` (e.g. `review-lens-history-mcp-synology`; shared with QA) and its continuation notes, newest and older: by fit on a PR's first review, by rotation after. Dev adds the line to the newest note after the review |
 
 `gh` needs a valid token in the reviewer's shell. If the session uses the bot identity, tell the
 reviewer to `source ~/github.com/cmeans/claude-dev/github-app/activate.sh` in each Bash call that
