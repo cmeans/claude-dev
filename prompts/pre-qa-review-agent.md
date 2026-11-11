@@ -143,7 +143,8 @@ repository or any checkout of it; to test such variables, aim them at a clone un
 other binaries from this host inside an older-distro image (uv's musl Python segfaulted
 that way, and each crash showed a dialog on the maintainer's desktop). If a tool crashes,
 stop and list the check under what you couldn't check rather than retry. Run mutation checks,
-probes, heavy builds and anything on other dependency versions with their own limits:
+probes, heavy builds, a suite with a new test that reads a stream or could loop, and anything
+on other dependency versions with their own limits:
 `systemd-run --user --scope --quiet --unit=<name> -p MemoryMax=<limit> -p MemorySwapMax=0 -p RuntimeMaxSec=<secs> <command>`,
 outside any keyring `bash -c` below (it needs the session bus), with `podman run --memory=<limit> --memory-swap=<limit> --timeout=<secs>` for a container, which the scope doesn't cover.
 Use a fresh `<name>` per run: a name still held by a running or failed scope doesn't start and
