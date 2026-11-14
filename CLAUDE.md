@@ -283,11 +283,39 @@ In those cases — and only those — the agent that opened the PR must:
    While CI runs, `Dev Active` may coexist; remove `Dev Active` when
    ready.
 2. CI passes → `pr-labels-ci.yml` promotes to `Ready for QA`.
-3. QA reviews → applies `Ready for QA Signoff` (pass, zero findings +
-   codecov green) or `QA Failed` (any issue, however minor), removing
-   `Ready for QA`.
-4. Dev fixes findings: adds `Dev Active` (which clears `QA Failed`),
-   fixes, pushes once, updates the PR body, then removes `Dev Active`.
+3. QA reviews → applies `Ready for QA Signoff` (pass) or `QA Failed`,
+   removing `Ready for QA`. **The exit bar** (maintainer, 2026-11-13;
+   Awareness `pref-qa-exit-bar-three-tiers`) decides which, with codecov
+   green. Severities are the critical-code-review skill's (High, Medium,
+   Low, Nit). QA's own scale maps onto them (blocker and substantive are
+   Medium or above, observation is Low, nit is Nit), and so does the pre-QA
+   table's (a `bug` is rated by the same tests; a `doc` that's a wrong
+   claim is the last tier below):
+   - **High and Medium** findings always fail the round.
+   - **A Low** fails it only when QA marks it **blocking**, with a one-line
+     reason: it ships something wrong (text or behavior a user or a release
+     would hit), or this PR introduced it (a regression from its own change,
+     not a gap it didn't close).
+   - **Nits** never fail it.
+   - **A wrong claim** in the PR body, the CHANGELOG (or its fragments) or
+     the docs always does: it would ship false text.
+
+   Everything that doesn't fail the round (non-blocking Lows, Nits) is
+   listed in the review and filed as an issue, by QA or by Dev before the
+   merge, or fixed in a later PR. Never push only for a Nit: a push restarts
+   CI and QA. A trivial Nit may ride along in a push that happens anyway.
+   A repo's own stricter bar wins (muse-field-kit's, in Awareness
+   `pref-muse-field-kit-exit-bar`, fails the round on every Low). Common
+   practice agrees: Google's review guide favors approving a change that
+   "definitely improves the overall code health … even if the CL isn't
+   perfect", and
+   Conventional Comments calls nitpicks "non-blocking by nature". Before
+   this, any finding failed the round, and on mcp-synology #732 each fix
+   round surfaced narrower ones.
+4. Dev fixes the findings that failed the round: adds `Dev Active` (which
+   clears `QA Failed`), fixes, files as issues the non-blocking findings
+   QA didn't file, pushes once, updates the PR body, then removes
+   `Dev Active`.
    In a repo with the label automation, it promotes to `Ready for QA`
    once CI passes. Never hand-apply `Ready for QA` before CI passes: that
    skips the CI gate. The exceptions: a fix to the PR body alone, with no
@@ -324,6 +352,9 @@ In those cases — and only those — the agent that opened the PR must:
      started isn't listed, so a short list needs a look.
    - You've read its latest comments and QA's last round, and nothing
      there needs the maintainer.
+   - Every finding QA's rounds listed as non-blocking (a Low not marked
+     blocking, a Nit) has an issue, QA's or yours: file what's missing
+     before the merge (step 3's exit bar).
 
    Merge with `gh pr merge --squash --match-head-commit <the SHA you
    checked>`. This removes waiting, not checking: a signoff can be wrong,
