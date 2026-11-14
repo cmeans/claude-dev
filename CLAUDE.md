@@ -32,7 +32,7 @@ On every new conversation, run these checks and report results concisely:
 1. **Announce directory**: Print working directory to confirm identity (e.g., `[Dev] Working from ~/github.com/cmeans/mcp-awareness`)
 2. **Awareness connectivity**: Call `get_briefing` -- report briefly (all-clear or attention items). If it fails, note that awareness is unreachable and continue.
 3. **Check for self-created intentions**: Call `get_intentions(state="fired", limit=10)` -- look for handoff notes from a previous session (`learned_from: "claude-code"`). These capture in-progress work from before a context compaction or conversation clear. Mention what was in progress and ask if the user wants to resume.
-4. **Cross-agent notes**: Call `get_knowledge(tags=["feedback"])` for QA findings or cross-agent notes meant for Dev to find, and `get_knowledge(tags=["handoff", "<repo>"])` for handoffs sent while Dev wasn't running.
+4. **Cross-agent catch-up**: the one read at session start from the global `CLAUDE.md`'s "Cross-agent signal": open agent-messages addressed to Dev and this repo that you haven't recorded done (messages sent before you registered, or to an earlier id, may not be in your spool). Tagged `feedback` or `handoff` entries alone aren't signals; don't poll for them.
 5. **Open PRs**: Run `gh pr list --state open` for the current repo (skip if not a GitHub repo).
 6. **PR label watcher** (main session only, never a subagent): If the repo has the label automation and `gh pr list --author app/cmeans-claude-dev` or `gh pr list --author app/dependabot` shows an open PR, run `bash ~/.cache/claude-dev/monitor/pr-watch.sh <owner>/<repo>` with the Monitor tool, `timeout_ms` 1800000. Also arm it when you open a PR and it isn't running, and re-arm it on each expiry while Dev or Dependabot has open PRs. Details are in the Awareness note `pr-label-watcher`. If the script isn't there (it's local to this machine), say so and continue.
    - **Startup line:** `watcher up` arrives later as an event: say "armed" at startup and report the line when it comes. If nothing comes within about a minute, read `~/.cache/claude-dev/monitor/<repo>.log`. The `watcher up` line's `already set` list holds labels announced earlier: in a new session, treat them like alerts; on a re-arm they're no news.
@@ -61,11 +61,12 @@ between agents/sessions/platforms.
   with `remember` and a stable `logical_key`. Litmus test: "still true in
   30 days?" → `remember`. Time-limited? → `add_context`.
 - **Use the `feedback` tag for cross-agent informational findings** that no
-  one needs to act on now; findings the other session should know now go as a
-  handoff (below).
+  one needs to act on now, and send an agent-message naming the entry: the tag
+  is for retrieval, the message is the signal (global `CLAUDE.md`, "Cross-agent
+  signal"). Findings the other session should act on go as a handoff (below).
 - **Issue or handoff** (maintainer, 2026-11-10). The global `CLAUDE.md`'s
-  "Cross-agent handoffs" is the full rule (finding the session with
-  `ListAgents`, what an entry says, replying, closing it); in short:
+  "Cross-agent signal" and "Cross-agent handoffs" are the full rule (what an
+  entry says, the agent-message, replying, closing it); in short:
   - A change to a repo's code, tests, docs or CI that needs a PR (a bug, a
     missing test, a wrong doc) is a GitHub issue on that repo, with labels and
     the PR that closes it. **Private security matters never go in an issue,**
@@ -73,7 +74,7 @@ between agents/sessions/platforms.
   - Everything else meant for another session is a **handoff**: an Awareness
     entry (`remember` with a `logical_key` for lasting content, or
     `add_context` tagged `["handoff", "<repo>"]` for a task), then a short
-    direct message (SendMessage) pointing at it. When one session files an
+    agent-message (`agent-msg send`, to a role at a project) naming it. When one session files an
     issue in another's repo, the handoff says the issue exists. Short questions
     and heads-ups can go by message alone. Not `remind` intentions: their
     firing is best-effort.
