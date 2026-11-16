@@ -360,8 +360,9 @@ Some classes this has missed, in mcp-synology:
 
 And in muse-android-bridge:
 - A setup change (server, device name, credential) while a request or receipt is in flight:
-  what stored per-request state crosses it, and where does its answer go? (#32: a waiting
-  confirm request was answered on the new ack topic, and its sender never got a receipt.)
+  what stored per-request state crosses it, and where does its answer go?
+  (muse-android-bridge #32, QA r1: a waiting confirm request was answered on the new ack
+  topic, and its sender never got a receipt.)
 
 Each was found one instance per round, and its siblings surfaced rounds later. A sibling
 that is out of scope still gets an issue before QA (see section 6), with the class named so
