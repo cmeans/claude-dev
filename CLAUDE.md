@@ -31,7 +31,7 @@ On every new conversation, run these checks and report results concisely:
 
 1. **Announce directory**: Print working directory to confirm identity (e.g., `[Dev] Working from ~/github.com/cmeans/mcp-awareness`)
 2. **Awareness connectivity**: Call `get_briefing` -- report briefly (all-clear or attention items). If it fails, note that awareness is unreachable and continue.
-3. **Check for self-created intentions**: Call `get_intentions(state="fired", limit=10)` -- look for handoff notes from a previous session (`learned_from: "claude-code"`). These capture in-progress work from before a context compaction or conversation clear. Mention what was in progress and ask if the user wants to resume.
+3. **Check for your own self-handoff**: Call `get_intentions(state="fired", tags=["self-handoff", "<repo>", "dev"], limit=5)` and use the newest one that names your agent id (older handoffs may lack the `dev` tag: also try `["self-handoff", "<repo>"]`). The briefing's fired intentions are global (other projects' and QA's handoffs show there too), so never resume from the briefing alone. Mention what was in progress and ask if the user wants to resume; resume as `~/.claude/rules/session-handoffs.md` ("Resume") says.
 4. **Cross-agent notes**: Call `get_knowledge(tags=["feedback"])` for QA findings or cross-agent notes meant for Dev to find, and `get_knowledge(tags=["handoff", "<repo>"])` for handoffs sent while Dev wasn't running.
 5. **Open PRs**: Run `gh pr list --state open` for the current repo (skip if not a GitHub repo).
 6. **PR label watcher** (main session only, never a subagent): If the repo has the label automation and `gh pr list --author app/cmeans-claude-dev` or `gh pr list --author app/dependabot` shows an open PR, run `bash ~/.cache/claude-dev/monitor/pr-watch.sh <owner>/<repo>` with the Monitor tool, `timeout_ms` 1800000. Also arm it when you open a PR and it isn't running, and re-arm it on each expiry while Dev or Dependabot has open PRs. Details are in the Awareness note `pr-label-watcher`. If the script isn't there (it's local to this machine), say so and continue.
@@ -87,12 +87,12 @@ between agents/sessions/platforms.
 
 ### On compaction or session end
 
-If approaching context limits or the user is about to clear, write an
-intention capturing current work state — what's in progress, what's done,
-what's next, ordering dependencies — then **immediately transition it to
-`fired`** via `update_intention(entry_id, state="fired")`. Pending
-intentions are silent in the next session's briefing; only fired ones
-surface.
+Self-handoffs (clear, restart, shutdown, park) and resuming from one follow
+the global rule, `~/.claude/rules/session-handoffs.md`: one `remind` with
+`deliver_at` set to now, tagged `handoff`, `wip`, `self-handoff`, `<repo>`,
+`dev` and the flavor. The old two-step (`remind` with no `deliver_at`, then
+`update_intention(state="fired")`) is retired. Before compaction, the
+`session-precompact-*` `remember` in the global `CLAUDE.md` still applies.
 
 ### Code ships before prompts
 
