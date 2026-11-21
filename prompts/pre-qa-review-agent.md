@@ -358,6 +358,12 @@ Some classes this has missed, in mcp-synology:
 - A description that promises output only some accounts or versions get (`get_system_info`
   and the CPU).
 
+And in muse-android-bridge:
+- A setup change (server, device name, credential) while a request or receipt is in flight:
+  what stored per-request state crosses it, and where does its answer go?
+  (muse-android-bridge #32, QA r1: a waiting confirm request was answered on the new ack
+  topic, and its sender never got a receipt.)
+
 Each was found one instance per round, and its siblings surfaced rounds later. A sibling
 that is out of scope still gets an issue before QA (see section 6), with the class named so
 the next fix can close them together.
